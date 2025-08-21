@@ -1,0 +1,12 @@
+After creating your GitHub repository, run these commands:
+
+# Replace YOURUSERNAME with your actual GitHub username
+git remote add origin https://github.com/YOURUSERNAME/kidqueue.git
+git branch -M main
+git push -u origin main
+
+Example:
+If your username is "john-smith", use:
+git remote add origin https://github.com/john-smith/kidqueue.git
+git branch -M main  
+git push -u origin main
