@@ -1,0 +1,106 @@
+name: Build Mobile Apps
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'packages/mobile/**'
+      - '.github/workflows/mobile-build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/mobile/**'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Expo CLI
+      run: npm install -g @expo/cli
+
+    - name: Install dependencies
+      run: |
+        cd packages/mobile
+        npm ci
+
+    - name: Setup EAS CLI
+      run: npm install -g eas-cli
+
+    - name: Build Android APK
+      run: |
+        cd packages/mobile
+        eas build --platform android --profile preview --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  build-ios:
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Expo CLI
+      run: npm install -g @expo/cli
+
+    - name: Install dependencies
+      run: |
+        cd packages/mobile
+        npm ci
+
+    - name: Setup EAS CLI
+      run: npm install -g eas-cli
+
+    - name: Build iOS IPA
+      run: |
+        cd packages/mobile
+        eas build --platform ios --profile preview --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  test-mobile:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd packages/mobile
+        npm ci
+
+    - name: Run TypeScript check
+      run: |
+        cd packages/mobile
+        npx tsc --noEmit
+
+    - name: Run tests
+      run: |
+        cd packages/mobile
+        npm run test
