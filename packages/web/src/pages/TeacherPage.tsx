@@ -15,31 +15,57 @@ import {
   Card,
   CardContent,
 } from '@mui/material'
-import { Refresh, QrCodeScanner } from '@mui/icons-material'
+import { Refresh } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
-import { useAuth } from '../contexts/AuthContext'
-import api from '../utils/api'
+import { useAuth } from '../contexts/FirebaseAuthContext'
+import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore'
+import { db } from '../config/firebase'
+import useQueue from '../hooks/useQueue'
+import ActiveUsersDisplay from '../components/ActiveUsersDisplay'
 
 export default function TeacherPage() {
   const { user } = useAuth()
 
-  const { data: queue, isLoading, refetch } = useQuery({
-    queryKey: ['school-queue', user?.schoolId],
-    queryFn: async () => {
-      if (!user?.schoolId) return []
-      const response = await api.get(`/queue/school/${user.schoolId}`)
-      return response.data.data
-    },
-    enabled: !!user?.schoolId,
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
-  })
+  // Use unified queue hook for consistent data access
+  const { allQueueEntries: queueData, refreshQueue, formatEstimatedTime } = useQueue()
 
   const { data: history } = useQuery({
     queryKey: ['queue-history', user?.schoolId],
     queryFn: async () => {
-      if (!user?.schoolId) return { entries: [], pagination: {} }
-      const response = await api.get(`/queue/history/${user.schoolId}?limit=10`)
-      return response.data.data
+      if (!user?.schoolId) return { entries: [] }
+      try {
+        const schoolId = user.schoolId
+        const q = query(
+          collection(db, 'queue'),
+          where('schoolId', '==', schoolId),
+          where('status', '==', 'picked_up'),
+          orderBy('pickedUpAt', 'desc')
+        )
+        const snapshot = await getDocs(q)
+        const entries = await Promise.all(
+          snapshot.docs.slice(0, 10).map(async (docSnap) => {
+            const entry = { id: docSnap.id, ...docSnap.data() }
+            
+            // Get student and parent details
+            const entryData = entry as any
+            const [studentDoc, parentDoc] = await Promise.all([
+              entryData.studentId ? getDoc(doc(db, 'students', entryData.studentId)) : null,
+              entryData.parentId ? getDoc(doc(db, 'users', entryData.parentId)) : null
+            ])
+            
+            return {
+              ...entry,
+              student: studentDoc?.exists() ? { id: studentDoc.id, ...studentDoc.data() } : null,
+              parent: parentDoc?.exists() ? { id: parentDoc.id, ...parentDoc.data() } : null
+            }
+          })
+        )
+        
+        return { entries }
+      } catch (error) {
+        console.error('[TEACHER DEBUG] Error fetching history:', error)
+        return { entries: [] }
+      }
     },
     enabled: !!user?.schoolId,
   })
@@ -52,6 +78,7 @@ export default function TeacherPage() {
     )
   }
 
+  const queue = queueData?.filter((entry: any) => entry.status === 'waiting' || entry.status === 'called') || []
   const waitingStudents = queue?.filter((entry: any) => entry.status === 'waiting') || []
   const calledStudents = queue?.filter((entry: any) => entry.status === 'called') || []
 
@@ -59,13 +86,19 @@ export default function TeacherPage() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Teacher Dashboard</Typography>
-        <Button
-          variant="outlined"
-          startIcon={<Refresh />}
-          onClick={() => refetch()}
-        >
-          Refresh Queue
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          <ActiveUsersDisplay 
+            showAllUsers={user?.role === 'admin'} 
+            compact={true} 
+          />
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={refreshQueue}
+          >
+            Refresh Queue
+          </Button>
+        </Box>
       </Box>
 
       <Grid container spacing={3}>
@@ -140,6 +173,7 @@ export default function TeacherPage() {
                       <TableCell>Parent</TableCell>
                       <TableCell>Vehicle</TableCell>
                       <TableCell>Status</TableCell>
+                      <TableCell>Estimated Pickup</TableCell>
                       <TableCell>Time in Queue</TableCell>
                     </TableRow>
                   </TableHead>
@@ -161,6 +195,9 @@ export default function TeacherPage() {
                             color={entry.status === 'waiting' ? 'warning' : 'success'}
                             size="small"
                           />
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                          {formatEstimatedTime(entry.queuePosition)}
                         </TableCell>
                         <TableCell>
                           {Math.round((Date.now() - new Date(entry.enteredAt).getTime()) / 60000)} min

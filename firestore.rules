@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read and write their own user profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Allow authenticated users to read and write students where they are the parent
+    match /students/{studentId} {
+      allow read, write: if request.auth != null && 
+        (resource == null || resource.data.parentId == request.auth.uid);
+      allow create: if request.auth != null && 
+        request.resource.data.parentId == request.auth.uid;
+    }
+    
+    // Allow authenticated users to read and write vehicles where they are the parent
+    // Also allow reading vehicles by qrCode for QR scanning functionality
+    match /vehicles/{vehicleId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        (resource == null || resource.data.parentId == request.auth.uid);
+      allow create: if request.auth != null && 
+        request.resource.data.parentId == request.auth.uid;
+    }
+    
+    // Allow authenticated users to read and write queue entries
+    // Parents can manage their own entries, teachers can manage any entries
+    match /queue/{entryId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        (resource == null || resource.data.parentId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read schools
+    match /schools/{schoolId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow authenticated users to read their own subscription data
+    // Admin (bryon.bowers@gmail.com) can read all subscriptions  
+    match /subscriptions/{userId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == userId || request.auth.token.email == 'bryon.bowers@gmail.com');
+      allow write: if request.auth != null && request.auth.token.email == 'bryon.bowers@gmail.com'; // Allow admin to write for testing
+    }
+  }
+}

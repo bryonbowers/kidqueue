@@ -1,13 +1,13 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
 })
 
 // Add auth token to requests
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('kidqueue_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -17,8 +17,8 @@ api.interceptors.request.use((config) => {
 
 // Handle auth errors
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: any) => response,
+  (error: any) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('kidqueue_token')
       window.location.href = '/login'

@@ -21,54 +21,97 @@ import {
   Card,
   CardContent,
   CardActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Checkbox,
+  ListItemText,
+  OutlinedInput,
 } from '@mui/material'
 import { Add, Edit, Delete, QrCode, Print } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import api from '../utils/api'
+import QRCodeGenerator from 'qrcode'
+import { useAuth } from '../contexts/FirebaseAuthContext'
+import { getVehiclesByParent, createVehicle, updateVehicle, deleteVehicle, generateVehicleQRData, getStudentsByParent, getVehicleByLicensePlate, migrateVehicleQRCodes } from '../services/firebaseService'
 
 const vehicleSchema = z.object({
-  licensePlate: z.string().min(1, 'License plate is required'),
+  licensePlate: z.string().min(1, 'License plate is required')
+    .transform(val => val.toUpperCase().trim())
+    .refine(val => val.length >= 2, 'License plate must be at least 2 characters')
+    .refine(val => /^[A-Z0-9\-\s]+$/.test(val), 'License plate can only contain letters, numbers, hyphens, and spaces'),
   make: z.string().optional(),
   model: z.string().optional(),
   color: z.string().optional(),
+  studentIds: z.array(z.string()).optional(),
 })
 
 type VehicleForm = z.infer<typeof vehicleSchema>
 
 export default function VehiclesPage() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<any>(null)
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
   const [selectedVehicleQR, setSelectedVehicleQR] = useState<any>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data: vehicles, isLoading } = useQuery({
-    queryKey: ['vehicles'],
+    queryKey: ['vehicles', user?.id],
     queryFn: async () => {
-      const response = await api.get('/vehicles')
-      return response.data.data
+      if (!user?.id) return []
+      return await getVehiclesByParent(user.id)
     },
+    enabled: !!user?.id,
+  })
+
+  const { data: students } = useQuery({
+    queryKey: ['students', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return []
+      return await getStudentsByParent(user.id)
+    },
+    enabled: !!user?.id,
   })
 
   const createMutation = useMutation({
     mutationFn: async (data: VehicleForm) => {
-      const response = await api.post('/vehicles', data)
-      return response.data
+      if (!user?.id) throw new Error('User not authenticated')
+      
+      // Generate QR code based on license plate
+      const qrCode = generateVehicleQRData(data.licensePlate)
+      
+      const vehicleData = {
+        ...data,
+        parentId: user.id,
+        qrCode
+      }
+      
+      // This will throw an error if license plate already exists
+      const id = await createVehicle(vehicleData)
+      return { id, ...vehicleData }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      setCreateError(null)
       setOpen(false)
       reset()
     },
+    onError: (error: Error) => {
+      // Show the error message (e.g., "License plate ABC123 is already registered")
+      setCreateError(error.message)
+      console.error('Vehicle creation error:', error.message)
+    }
   })
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<VehicleForm> }) => {
-      const response = await api.patch(`/vehicles/${id}`, data)
-      return response.data
+      await updateVehicle(id, data)
+      return { id, ...data }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
@@ -80,21 +123,47 @@ export default function VehiclesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.delete(`/vehicles/${id}`)
-      return response.data
+      await deleteVehicle(id)
+      return id
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
     },
   })
 
+  const migrateMutation = useMutation({
+    mutationFn: migrateVehicleQRCodes,
+    onSuccess: (count) => {
+      alert(`Migration completed! Updated ${count} vehicles to new QR code format.`)
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+    },
+    onError: (error: Error) => {
+      alert(`Migration failed: ${error.message}`)
+    }
+  })
+
   const qrMutation = useMutation({
-    mutationFn: async (vehicleId: string) => {
-      const response = await api.get(`/qr/vehicle/${vehicleId}`)
-      return response.data
+    mutationFn: async (vehicle: any) => {
+      // Generate QR data based on license plate
+      const qrData = generateVehicleQRData(vehicle.licensePlate)
+      const qrCodeDataUrl = await QRCodeGenerator.toDataURL(qrData, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      })
+      
+      return {
+        qrCode: qrCodeDataUrl,
+        data: qrData,
+        vehicleInfo: `${vehicle.make || ''} ${vehicle.model || ''} - ${vehicle.licensePlate}`.trim(),
+        licensePlate: vehicle.licensePlate
+      }
     },
     onSuccess: (data) => {
-      setSelectedVehicleQR(data.data)
+      setSelectedVehicleQR(data)
       setQrDialogOpen(true)
     },
   })
@@ -122,11 +191,13 @@ export default function VehiclesPage() {
         make: vehicle.make || '',
         model: vehicle.model || '',
         color: vehicle.color || '',
+        studentIds: vehicle.studentIds || [],
       })
     } else {
       setEditingVehicle(null)
       reset()
     }
+    setCreateError(null) // Clear any previous errors
     setOpen(true)
   }
 
@@ -151,7 +222,10 @@ export default function VehiclesPage() {
   }
 
   const handleShowQR = (vehicleId: string) => {
-    qrMutation.mutate(vehicleId)
+    const vehicle = vehicles?.find(v => v.id === vehicleId)
+    if (vehicle) {
+      qrMutation.mutate(vehicle)
+    }
   }
 
   const handlePrintQR = () => {
@@ -191,13 +265,23 @@ export default function VehiclesPage() {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">Vehicles</Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpen()}
-        >
-          Add Vehicle
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => migrateMutation.mutate()}
+            disabled={migrateMutation.isPending}
+          >
+            {migrateMutation.isPending ? 'Migrating...' : 'Fix QR Codes'}
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpen()}
+          >
+            Add Vehicle
+          </Button>
+        </Box>
       </Box>
 
       {!vehicles || vehicles.length === 0 ? (
@@ -213,6 +297,7 @@ export default function VehiclesPage() {
                 <TableCell>Make</TableCell>
                 <TableCell>Model</TableCell>
                 <TableCell>Color</TableCell>
+                <TableCell>Associated Students</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -224,6 +309,28 @@ export default function VehiclesPage() {
                   <TableCell>{vehicle.make || '-'}</TableCell>
                   <TableCell>{vehicle.model || '-'}</TableCell>
                   <TableCell>{vehicle.color || '-'}</TableCell>
+                  <TableCell>
+                    {vehicle.studentIds && vehicle.studentIds.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {vehicle.studentIds.map((studentId: string) => {
+                          const student = students?.find(s => s?.id === studentId)
+                          return (
+                            <Chip 
+                              key={studentId} 
+                              label={student?.name || `Student ${studentId.slice(0, 8)}`} 
+                              size="small" 
+                              color="primary" 
+                              variant="outlined"
+                            />
+                          )
+                        })}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No students associated
+                      </Typography>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Chip label="Active" color="success" size="small" />
                   </TableCell>
@@ -264,6 +371,11 @@ export default function VehiclesPage() {
         </DialogTitle>
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogContent>
+            {createError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {createError}
+              </Alert>
+            )}
             <Box display="flex" flexDirection="column" gap={2}>
               <Controller
                 name="licensePlate"
@@ -315,6 +427,47 @@ export default function VehiclesPage() {
                   />
                 )}
               />
+              
+              <Controller
+                name="studentIds"
+                control={control}
+                defaultValue={[]}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Associated Students</InputLabel>
+                    <Select
+                      {...field}
+                      multiple
+                      input={<OutlinedInput label="Associated Students" />}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {(selected as string[]).map((studentId) => {
+                            const student = students?.find(s => s?.id === studentId)
+                            return (
+                              <Chip key={studentId} label={student?.name || `Student ${studentId.slice(0, 8)}`} size="small" />
+                            )
+                          })}
+                        </Box>
+                      )}
+                    >
+                      {students?.map((student) => (
+                        <MenuItem key={student?.id} value={student?.id}>
+                          <Checkbox checked={(field.value || []).indexOf(student?.id) > -1} />
+                          <ListItemText 
+                            primary={student?.name || 'Unknown Student'} 
+                            secondary={`Grade ${student?.grade || 'Unknown'}`} 
+                          />
+                        </MenuItem>
+                      ))}
+                      {(!students || students.length === 0) && (
+                        <MenuItem disabled>
+                          <ListItemText primary="No students added yet" />
+                        </MenuItem>
+                      )}
+                    </Select>
+                  </FormControl>
+                )}
+              />
             </Box>
           </DialogContent>
           <DialogActions>
@@ -334,9 +487,21 @@ export default function VehiclesPage() {
       <Dialog open={qrDialogOpen} onClose={() => setQrDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Vehicle QR Code</DialogTitle>
         <DialogContent>
-          {selectedVehicleQR && (
+          {qrMutation.isPending ? (
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ py: 4 }}>
+              <Typography>Generating QR Code...</Typography>
+            </Box>
+          ) : selectedVehicleQR ? (
             <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-              <Typography variant="h6">{selectedVehicleQR.vehicleInfo}</Typography>
+              <Box textAlign="center">
+                <Typography variant="h6">{selectedVehicleQR.vehicleInfo}</Typography>
+                <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold', mt: 1 }}>
+                  {selectedVehicleQR.licensePlate}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  License Plate
+                </Typography>
+              </Box>
               <Card sx={{ maxWidth: 350, textAlign: 'center' }}>
                 <CardContent>
                   <Box
@@ -346,7 +511,11 @@ export default function VehiclesPage() {
                     sx={{ maxWidth: 250, width: '100%' }}
                   />
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    Place this QR code sticker on your windshield. Teachers can scan it to add all your students to the pickup queue.
+                    This QR code is linked to license plate <strong>{selectedVehicleQR.licensePlate}</strong>. 
+                    Place it on your windshield for easy pickup queue management.
+                  </Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 1, fontFamily: 'monospace' }}>
+                    QR Data: {selectedVehicleQR.data}
                   </Typography>
                 </CardContent>
                 <CardActions sx={{ justifyContent: 'center' }}>
@@ -359,6 +528,10 @@ export default function VehiclesPage() {
                   </Button>
                 </CardActions>
               </Card>
+            </Box>
+          ) : (
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2} sx={{ py: 4 }}>
+              <Typography>No QR code data available</Typography>
             </Box>
           )}
         </DialogContent>

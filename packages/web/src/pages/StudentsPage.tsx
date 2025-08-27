@@ -25,47 +25,87 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import api from '../utils/api'
+import { useAuth } from '../contexts/FirebaseAuthContext'
+import { getStudentsByParent, createStudent, updateStudent, deleteStudent, generateQRData } from '../services/firebaseService'
+import { subscriptionService } from '../services/subscriptionService'
 
 const studentSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   grade: z.string().min(1, 'Grade is required'),
-  schoolId: z.string().min(1, 'School is required'),
 })
 
 type StudentForm = z.infer<typeof studentSchema>
 
 export default function StudentsPage() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
   const [selectedStudentQR, setSelectedStudentQR] = useState<any>(null)
+  const [usageLimits, setUsageLimits] = useState<any>(null)
+  const [limitError, setLimitError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data: students, isLoading } = useQuery({
-    queryKey: ['students'],
+    queryKey: ['students', user?.id],
     queryFn: async () => {
-      const response = await api.get('/students')
-      return response.data.data
+      if (!user?.id) return []
+      return await getStudentsByParent(user.id)
     },
+    enabled: !!user?.id,
+  })
+
+  const { data: limits } = useQuery({
+    queryKey: ['usage-limits', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null
+      return await subscriptionService.checkUsageLimits(user.id)
+    },
+    enabled: !!user?.id,
+    onSuccess: (data) => {
+      setUsageLimits(data)
+    }
   })
 
   const createMutation = useMutation({
     mutationFn: async (data: StudentForm) => {
-      const response = await api.post('/students', data)
-      return response.data
+      if (!user?.id || !user?.schoolId) throw new Error('User not authenticated')
+      
+      // Check usage limits before creating
+      const limits = await subscriptionService.checkUsageLimits(user.id)
+      if (!limits.canCreateStudent) {
+        const message = limits.studentsLimit 
+          ? `You've reached your student limit of ${limits.studentsLimit}. Please upgrade your plan to add more students.`
+          : 'You need an active subscription to add students.'
+        throw new Error(message)
+      }
+      
+      const qrCode = generateQRData('student', 'temp')
+      const studentData = {
+        ...data,
+        parentId: user.id,
+        schoolId: user.schoolId,
+        qrCode
+      }
+      const id = await createStudent(studentData)
+      return { id, ...studentData }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] })
+      queryClient.invalidateQueries({ queryKey: ['usage-limits'] })
       setOpen(false)
       reset()
+      setLimitError(null)
     },
+    onError: (error: any) => {
+      setLimitError(error.message)
+    }
   })
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<StudentForm> }) => {
-      const response = await api.patch(`/students/${id}`, data)
-      return response.data
+      await updateStudent(id, data)
+      return { id, ...data }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] })
@@ -77,8 +117,8 @@ export default function StudentsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await api.delete(`/students/${id}`)
-      return response.data
+      await deleteStudent(id)
+      return id
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['students'] })
@@ -86,12 +126,15 @@ export default function StudentsPage() {
   })
 
   const qrMutation = useMutation({
-    mutationFn: async (studentId: string) => {
-      const response = await api.get(`/qr/student/${studentId}`)
-      return response.data
+    mutationFn: async (student: any) => {
+      // Generate QR data for the student
+      return {
+        qrCode: student.qrCode,
+        data: `KIDQUEUE_STUDENT_${student.id}_${Date.now()}`
+      }
     },
     onSuccess: (data) => {
-      setSelectedStudentQR(data.data)
+      setSelectedStudentQR(data)
       setQrDialogOpen(true)
     },
   })
@@ -106,7 +149,6 @@ export default function StudentsPage() {
     defaultValues: {
       name: '',
       grade: '',
-      schoolId: '',
     },
   })
 
@@ -116,7 +158,6 @@ export default function StudentsPage() {
       reset({
         name: student.name,
         grade: student.grade,
-        schoolId: student.schoolId,
       })
     } else {
       setEditingStudent(null)
@@ -157,15 +198,38 @@ export default function StudentsPage() {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Students</Typography>
+        <Box>
+          <Typography variant="h4">Students</Typography>
+          {limits && (
+            <Typography variant="body2" color="text.secondary">
+              {limits.studentsUsed} of {limits.studentsLimit || '∞'} students used
+            </Typography>
+          )}
+        </Box>
         <Button
           variant="contained"
           startIcon={<Add />}
           onClick={() => handleOpen()}
+          disabled={!!(limits && !limits.canCreateStudent)}
         >
           Add Student
         </Button>
       </Box>
+
+      {limitError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setLimitError(null)}>
+          {limitError}
+        </Alert>
+      )}
+
+      {limits && !limits.canCreateStudent && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {limits.studentsLimit 
+            ? `You've reached your student limit of ${limits.studentsLimit}. Upgrade your plan to add more students.`
+            : 'You need an active subscription to add students.'
+          }
+        </Alert>
+      )}
 
       {!students || students.length === 0 ? (
         <Alert severity="info">
@@ -261,19 +325,6 @@ export default function StudentsPage() {
                       </MenuItem>
                     ))}
                   </TextField>
-                )}
-              />
-              <Controller
-                name="schoolId"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="School ID"
-                    fullWidth
-                    error={!!errors.schoolId}
-                    helperText={errors.schoolId?.message || "Contact your school for the school ID"}
-                  />
                 )}
               />
             </Box>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KidQueue Firebase Setup Guide</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .step { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .button { display: inline-block; background: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 5px; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .pending { background: #fff3cd; border-left: 4px solid #ffc107; }
+        .success { background: #d4edda; border-left: 4px solid #28a745; }
+    </style>
+</head>
+<body>
+    <h1>🔥 KidQueue Firebase Setup</h1>
+    
+    <div class="status pending">
+        <strong>⚠️ Required:</strong> Complete these steps to enable authentication in your KidQueue app
+    </div>
+
+    <div class="step">
+        <h3>1. Enable Authentication Service</h3>
+        <p>Enable Google sign-in for your app</p>
+        <a href="https://console.firebase.google.com/project/kidqueue-app/authentication/providers" class="button" target="_blank">
+            🔐 Open Authentication Settings
+        </a>
+        <ul>
+            <li>Click "Get Started" if prompted</li>
+            <li>Go to "Sign-in method" tab</li>
+            <li>Click "Google" provider</li>
+            <li>Toggle "Enable"</li>
+            <li>Click "Save"</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>2. Enable Firestore Database</h3>
+        <p>Set up the database to store user and queue data</p>
+        <a href="https://console.firebase.google.com/project/kidqueue-app/firestore" class="button" target="_blank">
+            🗄️ Open Firestore Settings
+        </a>
+        <ul>
+            <li>Click "Create database"</li>
+            <li>Select "Start in test mode"</li>
+            <li>Choose location: "us-central1"</li>
+            <li>Click "Done"</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>3. Verify Authorized Domains</h3>
+        <p>Ensure your app domains are authorized</p>
+        <a href="https://console.firebase.google.com/project/kidqueue-app/authentication/settings" class="button" target="_blank">
+            🌐 Open Domain Settings
+        </a>
+        <ul>
+            <li>Check that these domains are listed:</li>
+            <li>✓ kidqueue-app.web.app</li>
+            <li>✓ kidqueue-app.firebaseapp.com</li>
+            <li>✓ localhost (for testing)</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>4. Test Your App</h3>
+        <p>After completing steps 1-3, test the authentication</p>
+        <a href="https://kidqueue-app.web.app" class="button" target="_blank">
+            🚀 Open KidQueue App
+        </a>
+        <p>Click "Continue with Google" - it should now work!</p>
+    </div>
+
+    <div class="status success" style="display: none;" id="success">
+        <strong>✅ Complete!</strong> Your KidQueue app authentication should now be working
+    </div>
+
+    <script>
+        // Auto-open the first link
+        setTimeout(() => {
+            window.open('https://console.firebase.google.com/project/kidqueue-app/authentication/providers', '_blank');
+        }, 1000);
+    </script>
+</body>
+</html>

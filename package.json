@@ -15,6 +15,7 @@
     "dev:web": "cd packages/web && npm run dev",
     "dev:api": "cd packages/api && npm run dev",
     "setup": "node scripts/setup-database.js",
+    "setup-stripe": "node scripts/setup-stripe.js",
     "build:web": "cd packages/web && npm run build",
     "build:api": "cd packages/api && npm run build",
     "test": "npm run test:web && npm run test:api",
@@ -23,7 +24,10 @@
     "lint": "eslint packages/*/src --ext .ts,.tsx,.js,.jsx",
     "typecheck": "npm run typecheck:web && npm run typecheck:api",
     "typecheck:web": "cd packages/web && npm run typecheck",
-    "typecheck:api": "cd packages/api && npm run typecheck"
+    "typecheck:api": "cd packages/api && npm run typecheck",
+    "deploy": "firebase deploy",
+    "deploy-functions": "firebase deploy --only functions",
+    "deploy-hosting": "firebase deploy --only hosting"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.0.0",
@@ -35,5 +39,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "stripe": "^18.4.0"
   }
 }

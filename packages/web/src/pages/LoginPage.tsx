@@ -6,20 +6,55 @@ import {
   Container,
   Stack,
   Divider,
+  Alert,
 } from '@mui/material'
 import { Google, Facebook } from '@mui/icons-material'
+import { useState } from 'react'
+import { useAuth } from '../contexts/FirebaseAuthContext'
+import { useAnalytics } from '../hooks/useAnalytics'
 
 export default function LoginPage() {
-  const handleGoogleLogin = () => {
-    window.location.href = '/api/auth/google'
+  const { signInWithGoogle, signInWithFacebook } = useAuth()
+  const { trackLogin, trackError, trackFeatureUsed } = useAnalytics()
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      trackFeatureUsed('google_login_attempt')
+      await signInWithGoogle()
+      trackLogin('google')
+    } catch (error: any) {
+      const errorMessage = error.message || 'Failed to sign in with Google'
+      setError(errorMessage)
+      trackError('login_failed', errorMessage, { method: 'google' })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleFacebookLogin = () => {
-    window.location.href = '/api/auth/facebook'
+  const handleFacebookLogin = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      trackFeatureUsed('facebook_login_attempt')
+      await signInWithFacebook()
+      trackLogin('facebook')
+    } catch (error: any) {
+      const errorMessage = error.message || 'Failed to sign in with Facebook'
+      setError(errorMessage)
+      trackError('login_failed', errorMessage, { method: 'facebook' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleAppleLogin = () => {
-    window.location.href = '/api/auth/apple'
+    trackFeatureUsed('apple_login_attempt')
+    setError('Apple Sign-In is not yet configured')
+    trackError('login_failed', 'Apple Sign-In not configured', { method: 'apple' })
   }
 
   return (
@@ -58,12 +93,19 @@ export default function LoginPage() {
               Sign in to continue
             </Typography>
 
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
             <Stack spacing={2}>
               <Button
                 fullWidth
                 variant="outlined"
                 startIcon={<Google />}
                 onClick={handleGoogleLogin}
+                disabled={loading}
                 sx={{
                   py: 1.5,
                   borderColor: '#db4437',
@@ -74,7 +116,7 @@ export default function LoginPage() {
                   },
                 }}
               >
-                Continue with Google
+                {loading ? 'Signing in...' : 'Continue with Google'}
               </Button>
 
               <Button
@@ -82,6 +124,7 @@ export default function LoginPage() {
                 variant="outlined"
                 startIcon={<Facebook />}
                 onClick={handleFacebookLogin}
+                disabled={loading}
                 sx={{
                   py: 1.5,
                   borderColor: '#4267B2',
@@ -92,7 +135,7 @@ export default function LoginPage() {
                   },
                 }}
               >
-                Continue with Facebook
+                {loading ? 'Signing in...' : 'Continue with Facebook'}
               </Button>
 
               <Button

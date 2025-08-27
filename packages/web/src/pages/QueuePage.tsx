@@ -12,17 +12,16 @@ import {
 } from '@mui/material'
 import { Refresh } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
-import api from '../utils/api'
+import { useAuth } from '../contexts/FirebaseAuthContext'
+import { collection, query, where, getDocs, doc, getDoc, orderBy } from 'firebase/firestore'
+import { db } from '../config/firebase'
+import useQueue from '../hooks/useQueue'
 
 export default function QueuePage() {
-  const { data: queueEntries, isLoading, refetch } = useQuery({
-    queryKey: ['queue-entries'],
-    queryFn: async () => {
-      const response = await api.get('/queue/my-entries')
-      return response.data.data
-    },
-    refetchInterval: 10000, // Refetch every 10 seconds
-  })
+  const { user } = useAuth()
+  
+  // Use unified queue hook for consistent data access
+  const { currentUserQueueEntries: queueEntries, isLoading, refreshQueue, formatEstimatedTime } = useQueue()
 
   if (isLoading) {
     return (
@@ -39,7 +38,7 @@ export default function QueuePage() {
         <Button
           variant="outlined"
           startIcon={<Refresh />}
-          onClick={() => refetch()}
+          onClick={refreshQueue}
         >
           Refresh
         </Button>
@@ -55,18 +54,30 @@ export default function QueuePage() {
             Students in Queue
           </Typography>
           <List>
-            {queueEntries.map((entry: any, index: number) => (
-              <ListItem key={entry.id} divider={index < queueEntries.length - 1}>
-                <ListItemText
-                  primary={entry.student.name}
-                  secondary={`${entry.school.name} • Position ${entry.queuePosition} • Entered at ${new Date(entry.enteredAt).toLocaleTimeString()}`}
-                />
-                <Chip
-                  label={entry.status === 'waiting' ? 'Waiting' : 'Called for Pickup'}
-                  color={entry.status === 'waiting' ? 'warning' : 'success'}
-                />
-              </ListItem>
-            ))}
+            {queueEntries.map((entry: any, index: number) => {
+              const estimatedTime = formatEstimatedTime(entry?.queuePosition || index + 1)
+              return (
+                <ListItem key={entry.id} divider={index < queueEntries.length - 1}>
+                  <ListItemText
+                    primary={entry?.student?.name || 'Unknown Student'}
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Position {entry?.queuePosition || 0} • Entered at {entry?.enteredAt ? new Date(entry.enteredAt).toLocaleTimeString() : 'Unknown time'}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 'bold', mt: 0.5 }}>
+                          📅 Estimated pickup: {estimatedTime}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <Chip
+                    label={entry.status === 'waiting' ? 'Waiting' : 'Called for Pickup'}
+                    color={entry.status === 'waiting' ? 'warning' : 'success'}
+                  />
+                </ListItem>
+              )
+            })}
           </List>
         </Paper>
       )}
