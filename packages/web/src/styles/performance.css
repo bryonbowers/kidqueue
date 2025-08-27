@@ -1,0 +1,321 @@
+/* 🚀 KidQueue Performance Optimizations - Critical CSS */
+
+/* ===== GPU ACCELERATION & HARDWARE OPTIMIZATION ===== */
+
+/* Force GPU layer creation for animated elements */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize glass morphism for performance */
+.glass-morphism {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transform: translateZ(0);
+  will-change: backdrop-filter;
+}
+
+/* Smooth animations with GPU acceleration */
+.smooth-animation {
+  will-change: transform, opacity, box-shadow;
+  transform: translateZ(0);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== ANIMATION PERFORMANCE HINTS ===== */
+
+/* Hover lift effect with optimal performance */
+.hover-lift {
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px) translateZ(0);
+  will-change: transform, box-shadow;
+}
+
+/* Fade animations with staggered timing */
+.fade-enter {
+  opacity: 0;
+  transform: translateY(20px) translateZ(0);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transform: translateY(0) translateZ(0);
+}
+
+/* Scale animations for buttons */
+.scale-on-hover {
+  transition: transform 150ms ease-out;
+  transform: scale(1) translateZ(0);
+}
+
+.scale-on-hover:hover {
+  transform: scale(1.02) translateZ(0);
+}
+
+.scale-on-hover:active {
+  transform: scale(0.98) translateZ(0);
+  transition: transform 50ms ease-out;
+}
+
+/* ===== LAYOUT OPTIMIZATION ===== */
+
+/* Contain layout changes within components */
+.layout-contained {
+  contain: layout style paint;
+}
+
+/* Optimize scroll performance */
+.smooth-scroll {
+  overflow-scrolling: touch;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout shift during image loading */
+.aspect-ratio-container {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  contain: layout;
+}
+
+.aspect-ratio-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ===== TYPOGRAPHY PERFORMANCE ===== */
+
+/* Optimize font rendering */
+.optimized-text {
+  font-display: swap;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent font loading layout shift */
+.font-loading-fallback {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-display: swap;
+}
+
+/* ===== MOBILE OPTIMIZATION ===== */
+
+/* Touch optimization for mobile devices */
+.touch-optimized {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Optimize button touch targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  position: relative;
+}
+
+/* Mobile-friendly hover states */
+@media (hover: hover) {
+  .mobile-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Touch feedback for mobile */
+.touch-feedback:active {
+  transform: scale(0.96);
+  transition: transform 50ms ease-out;
+}
+
+/* ===== PERFORMANCE CRITICAL STYLES ===== */
+
+/* Loading skeleton animations */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+/* Pulse animation for notifications */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.pulse {
+  animation: pulse 2s infinite;
+  transform: translateZ(0);
+}
+
+/* Optimized gradient performance */
+.performance-gradient {
+  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+  background-attachment: fixed;
+  will-change: background-position;
+}
+
+/* ===== MEMORY OPTIMIZATION ===== */
+
+/* Efficient box-shadow performance */
+.optimized-shadow {
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.24);
+  transition: box-shadow 200ms ease-out;
+}
+
+.optimized-shadow:hover {
+  box-shadow: 
+    0 14px 28px rgba(0, 0, 0, 0.25),
+    0 10px 10px rgba(0, 0, 0, 0.22);
+}
+
+/* Optimize border-radius performance */
+.rounded-performance {
+  border-radius: 12px;
+  /* Avoid expensive border-radius calculations */
+  background-clip: padding-box;
+}
+
+/* ===== ACCESSIBILITY PERFORMANCE ===== */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .high-contrast {
+    border: 2px solid;
+    background: var(--high-contrast-bg, white);
+    color: var(--high-contrast-text, black);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .respect-motion-preference {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus performance optimization */
+.focus-optimized:focus {
+  outline: 2px solid var(--focus-color, #2563eb);
+  outline-offset: 2px;
+  transition: outline-offset 100ms ease-out;
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Content visibility optimization */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 400px;
+}
+
+/* Transform optimization */
+.transform-gpu {
+  transform: translate3d(0, 0, 0);
+}
+
+/* Opacity optimization */
+.opacity-transition {
+  transition: opacity 200ms ease-out;
+  will-change: opacity;
+}
+
+/* Position optimization for fixed elements */
+.fixed-optimized {
+  position: fixed;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ===== CRITICAL RENDERING PATH ===== */
+
+/* Above-the-fold content optimization */
+.above-fold {
+  contain: layout style paint;
+  content-visibility: visible;
+}
+
+/* Below-the-fold lazy loading */
+.below-fold {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 300px;
+}
+
+/* Image loading optimization */
+.lazy-image {
+  loading: lazy;
+  decoding: async;
+  content-visibility: auto;
+}
+
+/* ===== PRINT OPTIMIZATION ===== */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-optimized {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ===== DEVELOPMENT HELPERS ===== */
+
+/* Performance debugging (remove in production) */
+/* .debug-performance * {
+  outline: 1px solid red;
+  background: rgba(255, 0, 0, 0.1) !important;
+} */
+
+/* Layout debugging (remove in production) */
+/* .debug-layout {
+  position: relative;
+}
+
+.debug-layout::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px dashed blue;
+  pointer-events: none;
+} */

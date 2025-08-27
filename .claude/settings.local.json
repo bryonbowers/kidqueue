@@ -37,7 +37,9 @@
       "Bash(gcloud functions describe:*)",
       "Bash(npm update:*)",
       "Bash(firebase functions:delete:*)",
-      "Read(/C:\\git\\kidqueue\\packages\\web\\src\\components/**)"
+      "Read(/C:\\git\\kidqueue\\packages\\web\\src\\components/**)",
+      "Bash(git push:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": [],

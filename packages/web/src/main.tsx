@@ -8,6 +8,7 @@ import App from './App'
 import { AuthProvider } from './contexts/FirebaseAuthContext'
 import { SchoolProvider } from './contexts/SchoolContext'
 import { initializeAnalytics } from './utils/analytics'
+import './styles/performance.css'
 
 const queryClient = new QueryClient()
 
