@@ -62,6 +62,7 @@ export default function SubscriptionPage() {
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [subscribing, setSubscribing] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [usageData, setUsageData] = useState({
     studentsUsed: 0,
     schoolsUsed: 0,
@@ -99,10 +100,28 @@ export default function SubscriptionPage() {
   useEffect(() => {
     const checkout = searchParams.get('checkout')
     if (checkout === 'success') {
-      // Refresh subscription data
-      window.location.href = '/dashboard'
+      console.log('🎉 Checkout success detected, refreshing subscription data...')
+      // Wait a moment for webhook processing, then refresh subscription data
+      setTimeout(async () => {
+        console.log('🔄 Refreshing subscription data after successful payment...')
+        try {
+          const subscription = await SubscriptionService.getUserSubscription(user?.id || '')
+          console.log('📄 Retrieved subscription:', subscription)
+          setCurrentSubscription(subscription)
+          
+          if (subscription) {
+            console.log('✅ Subscription found, redirecting to dashboard...')
+            window.location.href = '/dashboard'
+          } else {
+            console.log('⚠️ No subscription found after payment, staying on page for user to retry')
+            // Stay on the page so user can see the issue
+          }
+        } catch (error) {
+          console.error('❌ Error refreshing subscription after payment:', error)
+        }
+      }, 3000) // Wait 3 seconds for webhook processing
     }
-  }, [searchParams])
+  }, [searchParams, user])
 
   const handleSubscribe = async (planId: string) => {
     if (!user) {
@@ -117,6 +136,41 @@ export default function SubscriptionPage() {
       console.error('Subscription error:', error)
       alert('Failed to start subscription process. Please try again.')
       setSubscribing(null)
+    }
+  }
+
+  const handleManualRefresh = async () => {
+    if (!user) return
+    
+    setRefreshing(true)
+    try {
+      console.log('🔄 Manual refresh triggered by user')
+      
+      // Try to sync from Stripe first
+      await SubscriptionService.syncSubscriptionFromStripe(user.id)
+      
+      // Then refresh local data
+      const subscription = await SubscriptionService.getUserSubscription(user.id)
+      setCurrentSubscription(subscription)
+      
+      const usage = await SubscriptionService.checkUsageLimits(user.id)
+      setUsageData({
+        studentsUsed: usage.studentsUsed,
+        schoolsUsed: usage.schoolsUsed,
+        studentsLimit: usage.studentsLimit,
+        schoolsLimit: usage.schoolsLimit
+      })
+      
+      if (subscription) {
+        alert('✅ Subscription found and updated!')
+      } else {
+        alert('⚠️ No active subscription found. If you just paid, please wait a few more minutes for processing.')
+      }
+    } catch (error) {
+      console.error('Error during manual refresh:', error)
+      alert('❌ Failed to refresh subscription data. Please try again.')
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -145,8 +199,8 @@ export default function SubscriptionPage() {
           Select the perfect plan for your school or district
         </Typography>
         
-        {currentSubscription && (
-          <Alert severity="info" sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}>
+        {currentSubscription ? (
+          <Alert severity="success" sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}>
             You are currently on the <strong>
               {subscriptionPlans.find(p => p.id === currentSubscription.planId)?.name || 'Unknown'}
             </strong> plan. 
@@ -155,6 +209,24 @@ export default function SubscriptionPage() {
             ) : (
               ` Status: ${currentSubscription.status}`
             )}
+          </Alert>
+        ) : (
+          <Alert 
+            severity="warning" 
+            sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}
+            action={
+              <Button 
+                color="inherit" 
+                size="small" 
+                onClick={handleManualRefresh}
+                disabled={refreshing}
+                sx={{ ml: 2 }}
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh Status'}
+              </Button>
+            }
+          >
+            You don't have an active subscription. If you just completed a payment, click "Refresh Status" to check again.
           </Alert>
         )}
       </Box>

@@ -90,24 +90,31 @@ export class SubscriptionService {
   // Get user's current subscription
   static async getUserSubscription(userId: string): Promise<UserSubscription | null> {
     try {
+      console.log('🔍 Fetching subscription for user:', userId)
       const subscriptionRef = doc(db, 'subscriptions', userId)
       const subscriptionDoc = await getDoc(subscriptionRef)
       
       if (!subscriptionDoc.exists()) {
+        console.log('❌ No subscription document found for user:', userId)
         return null
       }
       
       const data = subscriptionDoc.data()
-      return {
+      console.log('📄 Raw subscription data:', data)
+      
+      const subscription = {
         ...data,
-        currentPeriodStart: data.currentPeriodStart.toDate(),
-        currentPeriodEnd: data.currentPeriodEnd.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate(),
+        currentPeriodStart: data.currentPeriodStart?.toDate(),
+        currentPeriodEnd: data.currentPeriodEnd?.toDate(),
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
         trialEndsAt: data.trialEndsAt?.toDate()
       } as UserSubscription
+      
+      console.log('✅ Processed subscription:', subscription)
+      return subscription
     } catch (error) {
-      console.error('Error fetching user subscription:', error)
+      console.error('❌ Error fetching user subscription:', error)
       return null
     }
   }
@@ -333,6 +340,32 @@ export class SubscriptionService {
     } catch (error) {
       console.error('Error canceling subscription:', error)
       throw error
+    }
+  }
+
+  // Manually sync subscription from Stripe (force refresh)
+  static async syncSubscriptionFromStripe(userId: string): Promise<boolean> {
+    try {
+      console.log('🔄 Manually syncing subscription from Stripe for user:', userId)
+      
+      const response = await fetch('https://api-ns2ux2jxra-uc.a.run.app/subscription/' + userId, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Failed to sync subscription:', response.statusText)
+        return false
+      }
+
+      const data = await response.json()
+      console.log('🔄 Sync response:', data)
+      return !!data.subscription
+    } catch (error) {
+      console.error('Error syncing subscription:', error)
+      return false
     }
   }
 
