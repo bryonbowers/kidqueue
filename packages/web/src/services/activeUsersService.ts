@@ -28,21 +28,34 @@ export const setUserActive = async (userId: string, userData: {
   role?: string
   schoolId?: string 
 }) => {
-  // Filter out undefined values to prevent Firebase errors
-  const cleanUserData = Object.fromEntries(
-    Object.entries(userData).filter(([_, value]) => value !== undefined)
-  )
+  // Build document data with explicit undefined checking
+  const documentData: any = {
+    name: userData.name,
+    email: userData.email,
+    lastSeen: serverTimestamp(),
+    isOnline: true
+  }
+  
+  // Only add optional fields if they have valid values
+  if (userData.role !== undefined && userData.role !== null && userData.role !== '') {
+    documentData.role = userData.role
+  }
+  
+  if (userData.schoolId !== undefined && userData.schoolId !== null && userData.schoolId !== '') {
+    documentData.schoolId = userData.schoolId
+  }
   
   try {
-    await setDoc(doc(db, 'activeUsers', userId), {
-      ...cleanUserData,
-      lastSeen: serverTimestamp(),
-      isOnline: true
-    }, { merge: true })
+    console.log('[DEBUG] Setting user active with data:', documentData)
+    
+    await setDoc(doc(db, 'activeUsers', userId), documentData, { merge: true })
+    
+    console.log('[DEBUG] Successfully set user active:', userId)
   } catch (error) {
     console.error('Error setting user active:', error)
     console.error('User data attempted:', userData)
-    console.error('Cleaned data used:', cleanUserData)
+    console.error('Document data that would be saved:', documentData)
+    throw error // Re-throw to help identify the issue
   }
 }
 
