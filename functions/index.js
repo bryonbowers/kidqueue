@@ -78,7 +78,7 @@ app.post('/create-checkout-session', async (req, res) => {
 
     // Get user info from Firebase
     const userDoc = await db.collection('users').doc(userId).get()
-    if (!userDoc.exists()) {
+    if (!userDoc.exists) {
       return res.status(404).json({ error: 'User not found' })
     }
 
@@ -145,12 +145,13 @@ app.get('/subscription/:userId', async (req, res) => {
     console.log('🔍 Fetching subscription for userId:', userId)
     const subscriptionDoc = await db.collection('subscriptions').doc(userId).get()
     
-    if (!subscriptionDoc.exists()) {
+    const subscription = subscriptionDoc.data()
+    
+    if (!subscription) {
       console.log('❌ No subscription document found for userId:', userId)
       return res.json({ subscription: null })
     }
 
-    const subscription = subscriptionDoc.data()
     console.log('✅ Found subscription:', subscription)
     res.json({ subscription })
 
@@ -165,9 +166,52 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    version: '2.1',
-    bug_fixes: ['exists_function_calls_fixed']
+    version: '3.0',
+    bug_fixes: ['exists_property_vs_function_fixed', 'subscription_retrieval_working']
   })
+})
+
+// Test subscription retrieval with alternative approach (for debugging)
+app.get('/test-subscription/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+    
+    console.log('🔍 [TEST] Fetching subscription for userId:', userId)
+    const subscriptionDoc = await db.collection('subscriptions').doc(userId).get()
+    
+    console.log('📄 [TEST] Document reference:', !!subscriptionDoc)
+    console.log('📄 [TEST] Document exists property:', subscriptionDoc.exists)
+    console.log('📄 [TEST] Document exists function type:', typeof subscriptionDoc.exists)
+    
+    // Alternative approach - check if data() returns null/undefined
+    const subscriptionData = subscriptionDoc.data()
+    
+    if (!subscriptionData) {
+      console.log('❌ [TEST] No subscription data found for userId:', userId)
+      return res.json({ 
+        subscription: null, 
+        debug: 'document_not_found',
+        exists_property: subscriptionDoc.exists,
+        data_result: subscriptionData
+      })
+    }
+
+    console.log('✅ [TEST] Found subscription:', subscriptionData)
+    res.json({ 
+      subscription: subscriptionData, 
+      debug: 'success',
+      exists_property: subscriptionDoc.exists
+    })
+
+  } catch (error) {
+    console.error('❌ [TEST] Error fetching subscription:', error)
+    res.status(500).json({ 
+      error: error.message, 
+      debug: 'error_caught',
+      errorName: error.name,
+      stack: error.stack
+    })
+  }
 })
 
 // Webhook endpoint info for Stripe configuration
@@ -199,7 +243,7 @@ app.post('/sync-subscription-from-stripe', async (req, res) => {
 
     // Get user document to find Stripe customer ID
     const userDoc = await db.collection('users').doc(userId).get()
-    if (!userDoc.exists()) {
+    if (!userDoc.exists) {
       return res.status(404).json({ error: 'User not found' })
     }
 
@@ -334,7 +378,7 @@ app.post('/cancel-subscription', async (req, res) => {
 
     const subscriptionDoc = await db.collection('subscriptions').doc(userId).get()
     
-    if (!subscriptionDoc.exists()) {
+    if (!subscriptionDoc.exists) {
       return res.status(404).json({ error: 'Subscription not found' })
     }
 
@@ -414,7 +458,7 @@ async function handleSubscriptionCreated(session) {
   
   // Verify the subscription was saved correctly
   const savedDoc = await db.collection('subscriptions').doc(userId).get()
-  if (savedDoc.exists()) {
+  if (savedDoc.exists) {
     console.log('✅ Verification: Subscription exists in Firebase with status:', savedDoc.data().status)
   } else {
     console.error('❌ Verification failed: Subscription not found in Firebase')
