@@ -1,8 +1,17 @@
 const functions = require('firebase-functions/v2')
 const admin = require('firebase-admin')
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const express = require('express')
 const cors = require('cors')
+
+// Initialize Stripe lazily to avoid build-time issues
+let stripe
+function getStripe() {
+  if (!stripe) {
+    const stripeLib = require('stripe')
+    stripe = stripeLib(process.env.STRIPE_SECRET_KEY)
+  }
+  return stripe
+}
 
 // Initialize Firebase Admin
 admin.initializeApp()
@@ -78,7 +87,7 @@ app.post('/create-checkout-session', async (req, res) => {
     // Create or get Stripe customer
     let customerId = userData.stripeCustomerId
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const customer = await getStripe().customers.create({
         email: userData.email,
         name: userData.name,
         metadata: {
@@ -94,7 +103,7 @@ app.post('/create-checkout-session', async (req, res) => {
     }
 
     // Create checkout session
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [{
@@ -166,7 +175,7 @@ app.post('/cancel-subscription', async (req, res) => {
     const subscriptionData = subscriptionDoc.data()
     
     // Cancel the Stripe subscription at period end
-    await stripe.subscriptions.update(subscriptionData.stripeSubscriptionId, {
+    await getStripe().subscriptions.update(subscriptionData.stripeSubscriptionId, {
       cancel_at_period_end: true
     })
 
@@ -186,13 +195,24 @@ app.post('/cancel-subscription', async (req, res) => {
 
 // Helper functions for webhook handlers
 async function handleSubscriptionCreated(session) {
-  console.log('Handling subscription created:', session.id)
+  console.log('🎉 Handling subscription created:', session.id)
+  console.log('🔍 Session data:', JSON.stringify(session, null, 2))
   
   const userId = session.client_reference_id
   const planId = session.metadata.planId
   
+  console.log('👤 User ID:', userId)
+  console.log('📦 Plan ID:', planId)
+  
+  if (!userId || !planId) {
+    console.error('❌ Missing userId or planId in session metadata')
+    return
+  }
+  
   // Get the subscription from Stripe
-  const subscription = await stripe.subscriptions.retrieve(session.subscription)
+  console.log('🔍 Retrieving subscription from Stripe:', session.subscription)
+  const subscription = await getStripe().subscriptions.retrieve(session.subscription)
+  console.log('✅ Subscription retrieved:', subscription.id, 'Status:', subscription.status)
   
   const subscriptionData = {
     id: userId,
@@ -220,9 +240,19 @@ async function handleSubscriptionCreated(session) {
   }
   
   // Save to Firebase
+  console.log('💾 Saving subscription to Firebase for user:', userId)
+  console.log('📄 Subscription data:', JSON.stringify(subscriptionData, null, 2))
   await db.collection('subscriptions').doc(userId).set(subscriptionData)
   
-  console.log('Subscription saved to Firebase:', userId)
+  console.log('✅ Subscription saved to Firebase:', userId)
+  
+  // Verify the subscription was saved correctly
+  const savedDoc = await db.collection('subscriptions').doc(userId).get()
+  if (savedDoc.exists()) {
+    console.log('✅ Verification: Subscription exists in Firebase with status:', savedDoc.data().status)
+  } else {
+    console.error('❌ Verification failed: Subscription not found in Firebase')
+  }
 }
 
 async function handlePaymentSucceeded(invoice) {
@@ -315,6 +345,7 @@ app.post('/webhook', async (req, res) => {
   console.log('📝 Request body type:', typeof req.body)
   console.log('📝 Request body constructor:', req.body.constructor.name)
   console.log('🔐 Stripe signature header:', req.headers['stripe-signature'] ? 'Present' : 'Missing')
+  console.log('🌐 Request headers:', JSON.stringify(req.headers, null, 2))
   
   const sig = req.headers['stripe-signature']
   let event
@@ -326,7 +357,7 @@ app.post('/webhook', async (req, res) => {
   
   try {
     console.log('🔍 Attempting webhook verification...')
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       req.body, 
       sig, 
       process.env.STRIPE_WEBHOOK_SECRET
@@ -344,6 +375,10 @@ app.post('/webhook', async (req, res) => {
     switch (event.type) {
       case 'checkout.session.completed':
         await handleSubscriptionCreated(event.data.object)
+        break
+        
+      case 'customer.subscription.created':
+        await handleSubscriptionUpdated(event.data.object)
         break
         
       case 'invoice.payment_succeeded':
@@ -395,7 +430,7 @@ webhookApp.post('/webhook', async (req, res) => {
   
   try {
     console.log('🔍 Attempting webhook verification...')
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       req.body, 
       sig, 
       process.env.STRIPE_WEBHOOK_SECRET
@@ -413,6 +448,10 @@ webhookApp.post('/webhook', async (req, res) => {
     switch (event.type) {
       case 'checkout.session.completed':
         await handleSubscriptionCreated(event.data.object)
+        break
+        
+      case 'customer.subscription.created':
+        await handleSubscriptionUpdated(event.data.object)
         break
         
       case 'invoice.payment_succeeded':

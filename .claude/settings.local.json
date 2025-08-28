@@ -39,7 +39,8 @@
       "Bash(firebase functions:delete:*)",
       "Read(/C:\\git\\kidqueue\\packages\\web\\src\\components/**)",
       "Bash(git push:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": [],
     "ask": [],

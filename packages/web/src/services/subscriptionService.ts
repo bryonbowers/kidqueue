@@ -133,6 +133,11 @@ export class SubscriptionService {
     }
   }
 
+  // Check if subscription status is considered active/valid
+  static isValidSubscriptionStatus(status: string): boolean {
+    return ['active', 'trialing', 'incomplete', 'past_due'].includes(status)
+  }
+
   // Check if user has access to feature
   static async checkFeatureAccess(userId: string, feature: string): Promise<boolean> {
     // Admin always has access
@@ -143,7 +148,7 @@ export class SubscriptionService {
     }
 
     const subscription = await this.getUserSubscription(userId)
-    if (!subscription || subscription.status !== 'active') {
+    if (!subscription || !this.isValidSubscriptionStatus(subscription.status)) {
       return false
     }
 
@@ -191,7 +196,7 @@ export class SubscriptionService {
     }
 
     const subscription = await this.getUserSubscription(userId)
-    if (!subscription || subscription.status !== 'active') {
+    if (!subscription || !this.isValidSubscriptionStatus(subscription.status)) {
       return {
         canCreateStudent: false,
         canCreateSchool: false,
