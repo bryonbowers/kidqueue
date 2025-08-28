@@ -329,7 +329,7 @@ app.post('/webhook', async (req, res) => {
     event = stripe.webhooks.constructEvent(
       req.body, 
       sig, 
-      process.env.STRIPE_WEBHOOK_SECRET || 'whsec_rJmrOMrie89n1mn7HyD5XJgO9AUFinE1'
+      process.env.STRIPE_WEBHOOK_SECRET
     )
     console.log('✅ Webhook verification successful!')
     console.log('📨 Event type:', event.type)
@@ -398,7 +398,7 @@ webhookApp.post('/webhook', async (req, res) => {
     event = stripe.webhooks.constructEvent(
       req.body, 
       sig, 
-      process.env.STRIPE_WEBHOOK_SECRET || 'whsec_rJmrOMrie89n1mn7HyD5XJgO9AUFinE1'
+      process.env.STRIPE_WEBHOOK_SECRET
     )
     console.log('✅ Webhook verification successful!')
     console.log('📨 Event type:', event.type)
