@@ -367,6 +367,41 @@ app.post('/debug/create-test-subscription', async (req, res) => {
   }
 })
 
+// Debug endpoint to create a test user
+app.post('/debug/create-test-user', async (req, res) => {
+  try {
+    const { userId, email, name } = req.body
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' })
+    }
+
+    console.log('🧪 Creating test user for:', { userId, email, name })
+
+    const userData = {
+      id: userId,
+      email: email || `test-${userId.substring(0, 8)}@example.com`,
+      name: name || `Test User ${userId.substring(0, 8)}`,
+      role: 'parent',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    await db.collection('users').doc(userId).set(userData)
+    console.log('✅ Test user created successfully')
+
+    res.json({ 
+      success: true, 
+      message: 'Test user created',
+      userData: userData 
+    })
+
+  } catch (error) {
+    console.error('❌ Error creating test user:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Cancel subscription
 app.post('/cancel-subscription', async (req, res) => {
   try {

@@ -40,7 +40,9 @@
       "Read(/C:\\git\\kidqueue\\packages\\web\\src\\components/**)",
       "Bash(git push:*)",
       "Bash(git reset:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(npm run deploy:api)",
+      "Bash(start test-subscription-ui.html)"
     ],
     "deny": [],
     "ask": [],

@@ -348,11 +348,12 @@ export class SubscriptionService {
     try {
       console.log('🔄 Manually syncing subscription from Stripe for user:', userId)
       
-      const response = await fetch('https://api-ns2ux2jxra-uc.a.run.app/subscription/' + userId, {
-        method: 'GET',
+      const response = await fetch('https://api-ns2ux2jxra-uc.a.run.app/sync-subscription-from-stripe', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify({ userId })
       })
 
       if (!response.ok) {
@@ -361,10 +362,37 @@ export class SubscriptionService {
       }
 
       const data = await response.json()
-      console.log('🔄 Sync response:', data)
-      return !!data.subscription
+      console.log('🔄 Stripe sync response:', data)
+      return data.success
     } catch (error) {
       console.error('Error syncing subscription:', error)
+      return false
+    }
+  }
+
+  // Debug: Create a test subscription (for development only)
+  static async createTestSubscription(userId: string, planId: string): Promise<boolean> {
+    try {
+      console.log('🧪 Creating test subscription for debugging:', { userId, planId })
+      
+      const response = await fetch('https://api-ns2ux2jxra-uc.a.run.app/debug/create-test-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, planId })
+      })
+
+      if (!response.ok) {
+        console.error('Failed to create test subscription:', response.statusText)
+        return false
+      }
+
+      const data = await response.json()
+      console.log('🧪 Test subscription created:', data)
+      return data.success
+    } catch (error) {
+      console.error('Error creating test subscription:', error)
       return false
     }
   }

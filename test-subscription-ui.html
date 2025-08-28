@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Test UI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 40px;
+            background: #f5f7fa;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            background: #fafbfc;
+        }
+        .user-switcher {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        button.secondary {
+            background: #6b7280;
+        }
+        button.secondary:hover {
+            background: #4b5563;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            background: #f8fafc;
+            border-left: 4px solid #10b981;
+        }
+        .error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .loading {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+        pre {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        .subscription-card {
+            background: white;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .plan-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .usage-bar {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+        .usage-fill {
+            background: #10b981;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .usage-fill.warning {
+            background: #f59e0b;
+        }
+        .usage-fill.danger {
+            background: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 KidQueue Subscription Test UI</h1>
+        <p>Test the subscription functionality with our debug users.</p>
+
+        <div class="user-switcher">
+            <h3>👤 Select Test User:</h3>
+            <button onclick="switchUser('HPkZ3HvXCiRJzDFWEyDCrICATpi1', 'Professional Plan User')">
+                Professional User (1,000 students, 5 schools)
+            </button>
+            <button onclick="switchUser('test-basic-user-clean', 'Basic Plan User')">
+                Basic User (100 students, 1 school)
+            </button>
+            <button onclick="switchUser('test-basic-user', 'Enterprise Plan User')">
+                Enterprise User (Unlimited)
+            </button>
+            <br><br>
+            <strong>Current User:</strong> <span id="currentUser">None selected</span>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Subscription Information</h3>
+            <button onclick="loadSubscription()">Load Subscription</button>
+            <button class="secondary" onclick="refreshSubscription()">Manual Refresh</button>
+            <div id="subscriptionResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Debug Actions</h3>
+            <button onclick="createTestSubscription('basic')">Create Basic Sub</button>
+            <button onclick="createTestSubscription('professional')">Create Pro Sub</button>
+            <button onclick="createTestSubscription('enterprise')">Create Enterprise Sub</button>
+            <div id="debugResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📈 Usage Limits Test</h3>
+            <button onclick="testUsageLimits()">Check Usage Limits</button>
+            <div id="usageResult"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://api-ns2ux2jxra-uc.a.run.app';
+        let currentUserId = null;
+        let currentUserName = null;
+
+        function switchUser(userId, userName) {
+            currentUserId = userId;
+            currentUserName = userName;
+            document.getElementById('currentUser').textContent = `${userName} (${userId})`;
+            
+            // Clear previous results
+            document.getElementById('subscriptionResult').innerHTML = '';
+            document.getElementById('usageResult').innerHTML = '';
+            document.getElementById('debugResult').innerHTML = '';
+        }
+
+        async function loadSubscription() {
+            if (!currentUserId) {
+                alert('Please select a user first');
+                return;
+            }
+
+            const resultDiv = document.getElementById('subscriptionResult');
+            resultDiv.innerHTML = '<div class="result loading">Loading subscription...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/subscription/${currentUserId}`);
+                const data = await response.json();
+
+                if (data.subscription) {
+                    const sub = data.subscription;
+                    const planInfo = getPlanInfo(sub.planId);
+                    
+                    resultDiv.innerHTML = `
+                        <div class="subscription-card">
+                            <div class="plan-badge">${sub.planId}</div>
+                            <h4>${planInfo.name} Plan</h4>
+                            <p><strong>Status:</strong> ${sub.status}</p>
+                            <p><strong>User ID:</strong> ${sub.userId}</p>
+                            <p><strong>Stripe Subscription:</strong> ${sub.stripeSubscriptionId}</p>
+                            <p><strong>Current Period:</strong> ${new Date(sub.currentPeriodStart._seconds * 1000).toLocaleDateString()} - ${new Date(sub.currentPeriodEnd._seconds * 1000).toLocaleDateString()}</p>
+                            <p><strong>Plan Limits:</strong></p>
+                            <ul>
+                                <li>Students: ${planInfo.studentLimit || 'Unlimited'}</li>
+                                <li>Schools: ${planInfo.schoolLimit || 'Unlimited'}</li>
+                            </ul>
+                        </div>
+                        <pre>${JSON.stringify(sub, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="result error">No subscription found for this user</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function refreshSubscription() {
+            if (!currentUserId) {
+                alert('Please select a user first');
+                return;
+            }
+
+            const resultDiv = document.getElementById('subscriptionResult');
+            resultDiv.innerHTML = '<div class="result loading">Refreshing from Stripe...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/sync-subscription-from-stripe`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = '<div class="result">✅ Subscription refreshed successfully! Click "Load Subscription" to see updated data.</div>';
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Refresh failed: ${result.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">Error refreshing: ${error.message}</div>`;
+            }
+        }
+
+        async function createTestSubscription(planId) {
+            if (!currentUserId) {
+                alert('Please select a user first');
+                return;
+            }
+
+            const resultDiv = document.getElementById('debugResult');
+            resultDiv.innerHTML = '<div class="result loading">Creating test subscription...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/debug/create-test-subscription`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, planId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `<div class="result">✅ ${planId} subscription created successfully!</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Failed to create subscription: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testUsageLimits() {
+            if (!currentUserId) {
+                alert('Please select a user first');
+                return;
+            }
+
+            const resultDiv = document.getElementById('usageResult');
+            resultDiv.innerHTML = '<div class="result loading">Checking usage limits...</div>';
+
+            try {
+                // First get the subscription to know the plan
+                const subResponse = await fetch(`${API_BASE}/subscription/${currentUserId}`);
+                const subData = await subResponse.json();
+
+                if (!subData.subscription) {
+                    resultDiv.innerHTML = '<div class="result error">No subscription found. Create one first.</div>';
+                    return;
+                }
+
+                const plan = getPlanInfo(subData.subscription.planId);
+                
+                // For demo purposes, simulate some usage data
+                const studentsUsed = Math.floor(Math.random() * (plan.studentLimit || 50));
+                const schoolsUsed = Math.floor(Math.random() * (plan.schoolLimit || 2));
+
+                const studentPercentage = plan.studentLimit ? (studentsUsed / plan.studentLimit) * 100 : 0;
+                const schoolPercentage = plan.schoolLimit ? (schoolsUsed / plan.schoolLimit) * 100 : 0;
+
+                resultDiv.innerHTML = `
+                    <div class="subscription-card">
+                        <h4>📊 Usage for ${plan.name} Plan</h4>
+                        
+                        <div style="margin: 15px 0;">
+                            <strong>Students:</strong> ${studentsUsed} / ${plan.studentLimit || 'Unlimited'}
+                            ${plan.studentLimit ? `
+                                <div class="usage-bar">
+                                    <div class="usage-fill ${studentPercentage > 80 ? 'danger' : studentPercentage > 60 ? 'warning' : ''}" 
+                                         style="width: ${studentPercentage}%"></div>
+                                </div>
+                                <small>${studentPercentage.toFixed(1)}% used</small>
+                            ` : ''}
+                        </div>
+
+                        <div style="margin: 15px 0;">
+                            <strong>Schools:</strong> ${schoolsUsed} / ${plan.schoolLimit || 'Unlimited'}
+                            ${plan.schoolLimit ? `
+                                <div class="usage-bar">
+                                    <div class="usage-fill ${schoolPercentage > 80 ? 'danger' : schoolPercentage > 60 ? 'warning' : ''}" 
+                                         style="width: ${schoolPercentage}%"></div>
+                                </div>
+                                <small>${schoolPercentage.toFixed(1)}% used</small>
+                            ` : ''}
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <strong>Permissions:</strong>
+                            <ul>
+                                <li>Can create students: ${!plan.studentLimit || studentsUsed < plan.studentLimit ? '✅ Yes' : '❌ No (limit reached)'}</li>
+                                <li>Can create schools: ${!plan.schoolLimit || schoolsUsed < plan.schoolLimit ? '✅ Yes' : '❌ No (limit reached)'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">Error checking limits: ${error.message}</div>`;
+            }
+        }
+
+        function getPlanInfo(planId) {
+            const plans = {
+                basic: { name: 'Basic', studentLimit: 100, schoolLimit: 1 },
+                professional: { name: 'Professional', studentLimit: 1000, schoolLimit: 5 },
+                enterprise: { name: 'Enterprise', studentLimit: null, schoolLimit: null }
+            };
+            return plans[planId] || { name: 'Unknown', studentLimit: 0, schoolLimit: 0 };
+        }
+
+        // Auto-load subscription when page loads if user is selected
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Subscription Test UI Ready!');
+            console.log('📡 API Base:', API_BASE);
+        });
+    </script>
+</body>
+</html>

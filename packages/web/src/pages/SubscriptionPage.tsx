@@ -235,15 +235,31 @@ export default function SubscriptionPage() {
             severity="warning" 
             sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}
             action={
-              <Button 
-                color="inherit" 
-                size="small" 
-                onClick={handleManualRefresh}
-                disabled={refreshing}
-                sx={{ ml: 2 }}
-              >
-                {refreshing ? 'Refreshing...' : 'Refresh Status'}
-              </Button>
+              <>
+                <Button 
+                  color="inherit" 
+                  size="small" 
+                  onClick={handleManualRefresh}
+                  disabled={refreshing}
+                  sx={{ ml: 2 }}
+                >
+                  {refreshing ? 'Refreshing...' : 'Refresh Status'}
+                </Button>
+                <Button 
+                  color="inherit" 
+                  size="small" 
+                  onClick={async () => {
+                    if (!user) return
+                    const success = await SubscriptionService.createTestSubscription(user.id, 'professional')
+                    if (success) {
+                      handleManualRefresh()
+                    }
+                  }}
+                  sx={{ ml: 1, opacity: 0.7, fontSize: '0.7rem' }}
+                >
+                  [Debug: Test Sub]
+                </Button>
+              </>
             }
           >
             You don't have an active subscription. If you just completed a payment, click "Refresh Status" to check again.
