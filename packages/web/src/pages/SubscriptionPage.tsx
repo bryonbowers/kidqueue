@@ -175,7 +175,27 @@ export default function SubscriptionPage() {
   }
 
   const isCurrentPlan = (planId: string) => {
-    return currentSubscription?.planId === planId && currentSubscription?.status === 'active'
+    return currentSubscription?.planId === planId && 
+           (currentSubscription?.status === 'active' || currentSubscription?.status === 'trialing')
+  }
+
+  const getButtonText = (plan: any) => {
+    if (subscribing === plan.id) return 'Processing...'
+    if (isCurrentPlan(plan.id)) return 'Current Plan'
+    if (!currentSubscription) return 'Get Started'
+    
+    // Compare plan prices for upgrade/downgrade logic
+    const currentPlan = subscriptionPlans.find(p => p.id === currentSubscription.planId)
+    if (currentPlan) {
+      if (plan.price > currentPlan.price) return 'Upgrade to ' + plan.name
+      if (plan.price < currentPlan.price) return 'Downgrade to ' + plan.name
+      return 'Switch to ' + plan.name
+    }
+    return 'Switch Plan'
+  }
+
+  const canSwitchTo = (planId: string) => {
+    return !isCurrentPlan(planId) && currentSubscription?.status !== 'canceled'
   }
 
   if (loading) {
@@ -235,42 +255,79 @@ export default function SubscriptionPage() {
       {currentSubscription && (
         <Paper sx={{ p: 3, mb: 4, maxWidth: 800, mx: 'auto' }}>
           <Typography variant="h6" gutterBottom>
-            Current Usage
+            Subscription Overview
           </Typography>
+          
           <Grid container spacing={3}>
-            <Grid item xs={6}>
-              <Box>
-                <Typography variant="body2" color="text.secondary">
-                  Students
-                </Typography>
-                <Typography variant="h6">
-                  {usageData.studentsUsed}
-                  {usageData.studentsLimit && ` / ${usageData.studentsLimit}`}
-                </Typography>
-                {usageData.studentsLimit && (
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={(usageData.studentsUsed / usageData.studentsLimit) * 100}
-                    sx={{ mt: 1 }}
-                  />
-                )}
-              </Box>
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle1" gutterBottom>
+                Current Usage
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Students
+                    </Typography>
+                    <Typography variant="h6">
+                      {usageData.studentsUsed}
+                      {usageData.studentsLimit && ` / ${usageData.studentsLimit}`}
+                    </Typography>
+                    {usageData.studentsLimit && (
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={(usageData.studentsUsed / usageData.studentsLimit) * 100}
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+                  </Box>
+                </Grid>
+                <Grid item xs={6}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Schools
+                    </Typography>
+                    <Typography variant="h6">
+                      {usageData.schoolsUsed}
+                      {usageData.schoolsLimit && ` / ${usageData.schoolsLimit}`}
+                    </Typography>
+                    {usageData.schoolsLimit && (
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={(usageData.schoolsUsed / usageData.schoolsLimit) * 100}
+                        sx={{ mt: 1 }}
+                      />
+                    )}
+                  </Box>
+                </Grid>
+              </Grid>
             </Grid>
-            <Grid item xs={6}>
-              <Box>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle1" gutterBottom>
+                Billing Information
+              </Typography>
+              <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Schools
+                  Plan: <strong>{subscriptionPlans.find(p => p.id === currentSubscription.planId)?.name || 'Unknown'}</strong>
                 </Typography>
-                <Typography variant="h6">
-                  {usageData.schoolsUsed}
-                  {usageData.schoolsLimit && ` / ${usageData.schoolsLimit}`}
-                </Typography>
-                {usageData.schoolsLimit && (
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={(usageData.schoolsUsed / usageData.schoolsLimit) * 100}
-                    sx={{ mt: 1 }}
+                <Typography variant="body2" color="text.secondary">
+                  Status: <Chip 
+                    label={currentSubscription.status} 
+                    color={currentSubscription.status === 'active' ? 'success' : 'default'} 
+                    size="small" 
+                    sx={{ ml: 1 }}
                   />
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Next billing: <strong>{currentSubscription.currentPeriodEnd.toLocaleDateString()}</strong>
+                </Typography>
+                {currentSubscription.cancelAtPeriodEnd && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    <Typography variant="body2">
+                      Subscription will cancel on {currentSubscription.currentPeriodEnd.toLocaleDateString()}
+                    </Typography>
+                  </Alert>
                 )}
               </Box>
             </Grid>
@@ -362,11 +419,16 @@ export default function SubscriptionPage() {
                   disabled={subscribing === plan.id || isCurrentPlan(plan.id)}
                   onClick={() => handleSubscribe(plan.id)}
                   startIcon={subscribing === plan.id ? <CreditCard /> : undefined}
-                  sx={{ mt: 2 }}
+                  sx={{ 
+                    mt: 2,
+                    ...(isCurrentPlan(plan.id) && {
+                      bgcolor: 'success.main',
+                      color: 'white',
+                      '&:hover': { bgcolor: 'success.dark' }
+                    })
+                  }}
                 >
-                  {subscribing === plan.id ? 'Processing...' : 
-                   isCurrentPlan(plan.id) ? 'Current Plan' : 
-                   currentSubscription ? 'Switch Plan' : 'Get Started'}
+                  {getButtonText(plan)}
                 </Button>
 
                 {plan.id === 'professional' && !currentSubscription && (
