@@ -28,6 +28,11 @@ import {
   Checkbox,
   ListItemText,
   OutlinedInput,
+  Grid,
+  Fade,
+  alpha,
+  useTheme,
+  Container,
 } from '@mui/material'
 import { Add, Edit, Delete, QrCode, Print } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -53,6 +58,7 @@ type VehicleForm = z.infer<typeof vehicleSchema>
 
 export default function VehiclesPage() {
   const { user } = useAuth()
+  const theme = useTheme()
   const [open, setOpen] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<any>(null)
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
@@ -262,107 +268,280 @@ export default function VehiclesPage() {
   }
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Vehicles</Typography>
-        <Box display="flex" gap={2}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => migrateMutation.mutate()}
-            disabled={migrateMutation.isPending}
+    <Container maxWidth="xl">
+      <Fade in timeout={800}>
+        <Box>
+          {/* Hero Header */}
+          <Box 
+            sx={{
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+              borderRadius: 3,
+              p: 4,
+              mb: 4,
+              backdropFilter: 'blur(10px)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            }}
           >
-            {migrateMutation.isPending ? 'Migrating...' : 'Fix QR Codes'}
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpen()}
-          >
-            Add Vehicle
-          </Button>
-        </Box>
-      </Box>
+            <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+              <Box>
+                <Typography 
+                  variant="h3" 
+                  sx={{ 
+                    fontWeight: 700,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    mb: 1
+                  }}
+                >
+                  Vehicle Management
+                </Typography>
+                <Typography variant="h6" color="text.secondary">
+                  Manage your family's vehicles and generate QR codes for easy pickup
+                </Typography>
+              </Box>
+              <Box display="flex" gap={2} flexWrap="wrap">
+                <Button
+                  variant="outlined"
+                  size="large"
+                  onClick={() => migrateMutation.mutate()}
+                  disabled={migrateMutation.isPending}
+                  sx={{
+                    borderRadius: 2,
+                    backdropFilter: 'blur(10px)',
+                    background: alpha(theme.palette.background.paper, 0.8),
+                  }}
+                >
+                  {migrateMutation.isPending ? 'Migrating...' : 'Fix QR Codes'}
+                </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<Add />}
+                  onClick={() => handleOpen()}
+                  sx={{
+                    borderRadius: 2,
+                    boxShadow: '0 8px 32px rgba(37, 99, 235, 0.3)',
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 12px 48px rgba(37, 99, 235, 0.4)',
+                    },
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                >
+                  Add Vehicle
+                </Button>
+              </Box>
+            </Box>
+          </Box>
 
-      {!vehicles || vehicles.length === 0 ? (
-        <Alert severity="info">
-          No vehicles added yet. Add your vehicle to generate QR codes for easy pickup queue management.
-        </Alert>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>License Plate</TableCell>
-                <TableCell>Make</TableCell>
-                <TableCell>Model</TableCell>
-                <TableCell>Color</TableCell>
-                <TableCell>Associated Students</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {vehicles.map((vehicle: any) => (
-                <TableRow key={vehicle.id}>
-                  <TableCell sx={{ fontWeight: 'bold' }}>{vehicle.licensePlate}</TableCell>
-                  <TableCell>{vehicle.make || '-'}</TableCell>
-                  <TableCell>{vehicle.model || '-'}</TableCell>
-                  <TableCell>{vehicle.color || '-'}</TableCell>
-                  <TableCell>
-                    {vehicle.studentIds && vehicle.studentIds.length > 0 ? (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {vehicle.studentIds.map((studentId: string) => {
-                          const student = students?.find(s => s?.id === studentId)
-                          return (
-                            <Chip 
-                              key={studentId} 
-                              label={student?.name || `Student ${studentId.slice(0, 8)}`} 
-                              size="small" 
-                              color="primary" 
-                              variant="outlined"
-                            />
-                          )
-                        })}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        No students associated
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Chip label="Active" color="success" size="small" />
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      onClick={() => handleShowQR(vehicle.id)}
-                      color="primary"
-                      title="Show QR Code"
+          {!vehicles || vehicles.length === 0 ? (
+            <Fade in timeout={600}>
+              <Box 
+                sx={{
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.light, 0.05)})`,
+                  border: `2px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                  borderRadius: 3,
+                  p: 4,
+                  textAlign: 'center',
+                  backdropFilter: 'blur(10px)',
+                }}
+              >
+                <Typography variant="h5" color="info.main" sx={{ mb: 2, fontWeight: 600 }}>
+                  Ready to Get Started?
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  Add your first vehicle to generate QR codes for easy pickup queue management.
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  size="large" 
+                  startIcon={<Add />} 
+                  onClick={() => handleOpen()}
+                  sx={{
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 32px rgba(33, 150, 243, 0.3)',
+                    },
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                >
+                  Add Your First Vehicle
+                </Button>
+              </Box>
+            </Fade>
+          ) : (
+            <Grid container spacing={3}>
+              {vehicles.map((vehicle: any, index: number) => (
+                <Grid item xs={12} sm={6} lg={4} key={vehicle.id}>
+                  <Fade in timeout={800 + index * 100}>
+                    <Card
+                      sx={{
+                        height: '100%',
+                        background: alpha(theme.palette.background.paper, 0.8),
+                        backdropFilter: 'blur(20px)',
+                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        borderRadius: 3,
+                        boxShadow: '0 8px 40px rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-8px)',
+                          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.12)',
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                        },
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
                     >
-                      <QrCode />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleOpen(vehicle)}
-                      color="primary"
-                      title="Edit"
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleDelete(vehicle.id)}
-                      color="error"
-                      title="Delete"
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
+                      <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                        {/* License Plate Header */}
+                        <Box sx={{ mb: 3 }}>
+                          <Typography 
+                            variant="h4" 
+                            sx={{ 
+                              fontWeight: 700,
+                              color: theme.palette.primary.main,
+                              mb: 0.5,
+                              letterSpacing: '0.1em'
+                            }}
+                          >
+                            {vehicle.licensePlate}
+                          </Typography>
+                          <Chip 
+                            label="Active" 
+                            color="success" 
+                            size="small" 
+                            sx={{ 
+                              borderRadius: 1.5,
+                              fontWeight: 600,
+                              background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                            }} 
+                          />
+                        </Box>
+
+                        {/* Vehicle Details */}
+                        <Box sx={{ mb: 3 }}>
+                          {(vehicle.make || vehicle.model) && (
+                            <Typography 
+                              variant="h6" 
+                              sx={{ 
+                                color: theme.palette.text.primary,
+                                fontWeight: 600,
+                                mb: 1 
+                              }}
+                            >
+                              {[vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle Details'}
+                            </Typography>
+                          )}
+                          
+                          {vehicle.color && (
+                            <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+                              Color: <strong>{vehicle.color}</strong>
+                            </Typography>
+                          )}
+                        </Box>
+
+                        {/* Associated Students */}
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+                            Associated Students
+                          </Typography>
+                          {vehicle.studentIds && vehicle.studentIds.length > 0 ? (
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                              {vehicle.studentIds.map((studentId: string) => {
+                                const student = students?.find(s => s?.id === studentId)
+                                return (
+                                  <Chip 
+                                    key={studentId} 
+                                    label={student?.name || `Student ${studentId.slice(0, 8)}`} 
+                                    size="small" 
+                                    sx={{
+                                      background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.1)}, ${alpha(theme.palette.secondary.light, 0.05)})`,
+                                      border: `1px solid ${alpha(theme.palette.secondary.main, 0.3)}`,
+                                      color: theme.palette.secondary.dark,
+                                      fontWeight: 500,
+                                      borderRadius: 1.5,
+                                    }}
+                                  />
+                                )
+                              })}
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                              No students assigned
+                            </Typography>
+                          )}
+                        </Box>
+                      </CardContent>
+
+                      <CardActions sx={{ 
+                        p: 3, 
+                        pt: 0, 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                      }}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton
+                            onClick={() => handleShowQR(vehicle.id)}
+                            sx={{
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                              color: theme.palette.primary.main,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)}, ${alpha(theme.palette.primary.light, 0.1)})`,
+                                transform: 'scale(1.1)',
+                              }
+                            }}
+                            title="Show QR Code"
+                          >
+                            <QrCode />
+                          </IconButton>
+                          <IconButton
+                            onClick={() => handleOpen(vehicle)}
+                            sx={{
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.light, 0.05)})`,
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+                              color: theme.palette.info.main,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.2)}, ${alpha(theme.palette.info.light, 0.1)})`,
+                                transform: 'scale(1.1)',
+                              }
+                            }}
+                            title="Edit Vehicle"
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Box>
+                        <IconButton
+                          onClick={() => handleDelete(vehicle.id)}
+                          sx={{
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.1)}, ${alpha(theme.palette.error.light, 0.05)})`,
+                            border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                            color: theme.palette.error.main,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.2)}, ${alpha(theme.palette.error.light, 0.1)})`,
+                              transform: 'scale(1.1)',
+                            }
+                          }}
+                          title="Delete Vehicle"
+                        >
+                          <Delete />
+                        </IconButton>
+                      </CardActions>
+                    </Card>
+                  </Fade>
+                </Grid>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+            </Grid>
+          )}
 
       {/* Add/Edit Vehicle Dialog */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -539,6 +718,8 @@ export default function VehiclesPage() {
           <Button onClick={() => setQrDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-    </Box>
+        </Box>
+      </Fade>
+    </Container>
   )
 }

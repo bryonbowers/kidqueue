@@ -19,6 +19,14 @@ import {
   MenuItem,
   Chip,
   Alert,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Fade,
+  alpha,
+  useTheme,
+  Container,
 } from '@mui/material'
 import { Add, Edit, Delete, QrCode } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -38,6 +46,7 @@ type StudentForm = z.infer<typeof studentSchema>
 
 export default function StudentsPage() {
   const { user } = useAuth()
+  const theme = useTheme()
   const [open, setOpen] = useState(false)
   const [editingStudent, setEditingStudent] = useState<any>(null)
   const [qrDialogOpen, setQrDialogOpen] = useState(false)
@@ -196,95 +205,304 @@ export default function StudentsPage() {
   ]
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Container maxWidth="xl">
+      <Fade in timeout={800}>
         <Box>
-          <Typography variant="h4">Students</Typography>
-          {limits && (
-            <Typography variant="body2" color="text.secondary">
-              {limits.studentsUsed} of {limits.studentsLimit || '∞'} students used
-            </Typography>
+          {/* Hero Header */}
+          <Box 
+            sx={{
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+              borderRadius: 3,
+              p: 4,
+              mb: 4,
+              backdropFilter: 'blur(10px)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            }}
+          >
+            <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+              <Box>
+                <Typography 
+                  variant="h3" 
+                  sx={{ 
+                    fontWeight: 700,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    mb: 1
+                  }}
+                >
+                  Student Management
+                </Typography>
+                <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                  Manage your children's school information and pickup codes
+                </Typography>
+                {limits && (
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1
+                    }}
+                  >
+                    Usage: <Chip 
+                      label={`${limits.studentsUsed} of ${limits.studentsLimit || '∞'} students`}
+                      size="small"
+                      color={limits.canCreateStudent ? 'success' : 'warning'}
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Typography>
+                )}
+              </Box>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<Add />}
+                onClick={() => handleOpen()}
+                disabled={!!(limits && !limits.canCreateStudent)}
+                sx={{
+                  borderRadius: 2,
+                  boxShadow: '0 8px 32px rgba(37, 99, 235, 0.3)',
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 12px 48px rgba(37, 99, 235, 0.4)',
+                  },
+                  '&:disabled': {
+                    background: alpha(theme.palette.action.disabled, 0.2),
+                    color: theme.palette.action.disabled,
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              >
+                Add Student
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Alerts */}
+          {limitError && (
+            <Fade in timeout={400}>
+              <Alert 
+                severity="error" 
+                sx={{ 
+                  mb: 2, 
+                  borderRadius: 2,
+                  backdropFilter: 'blur(10px)',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.1)}, ${alpha(theme.palette.error.light, 0.05)})`,
+                  border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                }} 
+                onClose={() => setLimitError(null)}
+              >
+                {limitError}
+              </Alert>
+            </Fade>
           )}
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpen()}
-          disabled={!!(limits && !limits.canCreateStudent)}
-        >
-          Add Student
-        </Button>
-      </Box>
 
-      {limitError && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setLimitError(null)}>
-          {limitError}
-        </Alert>
-      )}
+          {limits && !limits.canCreateStudent && (
+            <Fade in timeout={400}>
+              <Alert 
+                severity="warning" 
+                sx={{ 
+                  mb: 2,
+                  borderRadius: 2,
+                  backdropFilter: 'blur(10px)',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)}, ${alpha(theme.palette.warning.light, 0.05)})`,
+                  border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+                }}
+              >
+                {limits.studentsLimit 
+                  ? `You've reached your student limit of ${limits.studentsLimit}. Upgrade your plan to add more students.`
+                  : 'You need an active subscription to add students.'
+                }
+              </Alert>
+            </Fade>
+          )}
 
-      {limits && !limits.canCreateStudent && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          {limits.studentsLimit 
-            ? `You've reached your student limit of ${limits.studentsLimit}. Upgrade your plan to add more students.`
-            : 'You need an active subscription to add students.'
-          }
-        </Alert>
-      )}
+          {!students || students.length === 0 ? (
+            <Fade in timeout={600}>
+              <Box 
+                sx={{
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.light, 0.05)})`,
+                  border: `2px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                  borderRadius: 3,
+                  p: 4,
+                  textAlign: 'center',
+                  backdropFilter: 'blur(10px)',
+                }}
+              >
+                <Typography variant="h5" color="info.main" sx={{ mb: 2, fontWeight: 600 }}>
+                  Ready to Get Started?
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                  Add your first student to get started with pickup queue management.
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  size="large" 
+                  startIcon={<Add />} 
+                  onClick={() => handleOpen()}
+                  disabled={!!(limits && !limits.canCreateStudent)}
+                  sx={{
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 32px rgba(33, 150, 243, 0.3)',
+                    },
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                >
+                  Add Your First Student
+                </Button>
+              </Box>
+            </Fade>
+          ) : (
+            <Grid container spacing={3}>
+              {students.map((student: any, index: number) => (
+                <Grid item xs={12} sm={6} lg={4} key={student.id}>
+                  <Fade in timeout={800 + index * 100}>
+                    <Card
+                      sx={{
+                        height: '100%',
+                        background: alpha(theme.palette.background.paper, 0.8),
+                        backdropFilter: 'blur(20px)',
+                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                        borderRadius: 3,
+                        boxShadow: '0 8px 40px rgba(0, 0, 0, 0.08)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-8px)',
+                          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.12)',
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                        },
+                        display: 'flex',
+                        flexDirection: 'column',
+                      }}
+                    >
+                      <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                        {/* Student Name Header */}
+                        <Box sx={{ mb: 2 }}>
+                          <Typography 
+                            variant="h4" 
+                            sx={{ 
+                              fontWeight: 700,
+                              color: theme.palette.primary.main,
+                              mb: 0.5,
+                              textAlign: 'center'
+                            }}
+                          >
+                            {student.name}
+                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                            <Chip 
+                              label="Active" 
+                              color="success" 
+                              sx={{ 
+                                borderRadius: 1.5,
+                                fontWeight: 600,
+                                background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                              }} 
+                            />
+                          </Box>
+                        </Box>
 
-      {!students || students.length === 0 ? (
-        <Alert severity="info">
-          No students added yet. Add your first student to get started with pickup queue management.
-        </Alert>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Grade</TableCell>
-                <TableCell>School</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {students.map((student: any) => (
-                <TableRow key={student.id}>
-                  <TableCell>{student.name}</TableCell>
-                  <TableCell>{student.grade}</TableCell>
-                  <TableCell>{student.school?.name || 'No school assigned'}</TableCell>
-                  <TableCell>
-                    <Chip label="Active" color="success" size="small" />
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      onClick={() => handleShowQR(student.id)}
-                      color="primary"
-                      title="Show QR Code"
-                    >
-                      <QrCode />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleOpen(student)}
-                      color="primary"
-                      title="Edit"
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleDelete(student.id)}
-                      color="error"
-                      title="Delete"
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
+                        {/* Student Details */}
+                        <Box sx={{ mb: 2, textAlign: 'center' }}>
+                          <Typography 
+                            variant="h5" 
+                            sx={{ 
+                              color: theme.palette.secondary.main,
+                              fontWeight: 600,
+                              mb: 2
+                            }}
+                          >
+                            Grade {student.grade}
+                          </Typography>
+                          
+                          <Typography 
+                            variant="body1" 
+                            color="text.secondary" 
+                            sx={{ 
+                              fontWeight: 500,
+                              padding: 2,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.background.default, 0.5)}, ${alpha(theme.palette.background.paper, 0.8)})`,
+                              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                            }}
+                          >
+                            🏫 {student.school?.name || 'No school assigned'}
+                          </Typography>
+                        </Box>
+                      </CardContent>
+
+                      <CardActions sx={{ 
+                        p: 3, 
+                        pt: 0, 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                      }}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton
+                            onClick={() => handleShowQR(student.id)}
+                            sx={{
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                              color: theme.palette.primary.main,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)}, ${alpha(theme.palette.primary.light, 0.1)})`,
+                                transform: 'scale(1.1)',
+                              }
+                            }}
+                            title="Show QR Code"
+                          >
+                            <QrCode />
+                          </IconButton>
+                          <IconButton
+                            onClick={() => handleOpen(student)}
+                            sx={{
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.light, 0.05)})`,
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`,
+                              color: theme.palette.info.main,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.2)}, ${alpha(theme.palette.info.light, 0.1)})`,
+                                transform: 'scale(1.1)',
+                              }
+                            }}
+                            title="Edit Student"
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Box>
+                        <IconButton
+                          onClick={() => handleDelete(student.id)}
+                          sx={{
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.1)}, ${alpha(theme.palette.error.light, 0.05)})`,
+                            border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                            color: theme.palette.error.main,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.2)}, ${alpha(theme.palette.error.light, 0.1)})`,
+                              transform: 'scale(1.1)',
+                            }
+                          }}
+                          title="Delete Student"
+                        >
+                          <Delete />
+                        </IconButton>
+                      </CardActions>
+                    </Card>
+                  </Fade>
+                </Grid>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+            </Grid>
+          )}
 
       {/* Add/Edit Student Dialog */}
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -365,6 +583,8 @@ export default function StudentsPage() {
           <Button onClick={() => setQrDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-    </Box>
+        </Box>
+      </Fade>
+    </Container>
   )
 }

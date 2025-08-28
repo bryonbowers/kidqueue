@@ -288,8 +288,11 @@ export default function QRScanner({ onScan, onClose, isOpen }: QRScannerProps) {
           width: '100%',
           maxWidth: { xs: '100%', sm: 500 },
           height: { xs: '100%', sm: 'auto' },
-          backgroundColor: 'white',
-          borderRadius: { xs: 0, sm: 2 },
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: { xs: 0, sm: 3 },
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -301,8 +304,9 @@ export default function QRScanner({ onScan, onClose, isOpen }: QRScannerProps) {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          backgroundColor: 'primary.main',
-          color: 'white'
+          background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
+          color: 'white',
+          backdropFilter: 'blur(10px)'
         }}>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <QrCodeScanner />
@@ -385,9 +389,14 @@ export default function QRScanner({ onScan, onClose, isOpen }: QRScannerProps) {
                   <IconButton
                     onClick={switchCamera}
                     sx={{ 
-                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      backdropFilter: 'blur(10px)',
                       color: 'white',
-                      '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' }
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': { 
+                        background: 'rgba(255, 255, 255, 0.3)',
+                        transform: 'scale(1.05)'
+                      }
                     }}
                   >
                     <Cameraswitch />
@@ -398,9 +407,14 @@ export default function QRScanner({ onScan, onClose, isOpen }: QRScannerProps) {
                   <IconButton
                     onClick={toggleFlash}
                     sx={{ 
-                      backgroundColor: flashEnabled ? 'rgba(255,255,0,0.3)' : 'rgba(255,255,255,0.2)',
+                      background: flashEnabled ? 'rgba(255, 255, 0, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+                      backdropFilter: 'blur(10px)',
                       color: 'white',
-                      '&:hover': { backgroundColor: flashEnabled ? 'rgba(255,255,0,0.5)' : 'rgba(255,255,255,0.3)' }
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': { 
+                        background: flashEnabled ? 'rgba(255, 255, 0, 0.5)' : 'rgba(255, 255, 255, 0.3)',
+                        transform: 'scale(1.05)'
+                      }
                     }}
                   >
                     {flashEnabled ? <FlashOff /> : <FlashOn />}
