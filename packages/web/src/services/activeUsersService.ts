@@ -28,14 +28,21 @@ export const setUserActive = async (userId: string, userData: {
   role?: string
   schoolId?: string 
 }) => {
+  // Filter out undefined values to prevent Firebase errors
+  const cleanUserData = Object.fromEntries(
+    Object.entries(userData).filter(([_, value]) => value !== undefined)
+  )
+  
   try {
     await setDoc(doc(db, 'activeUsers', userId), {
-      ...userData,
+      ...cleanUserData,
       lastSeen: serverTimestamp(),
       isOnline: true
     }, { merge: true })
   } catch (error) {
     console.error('Error setting user active:', error)
+    console.error('User data attempted:', userData)
+    console.error('Cleaned data used:', cleanUserData)
   }
 }
 
