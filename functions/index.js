@@ -78,7 +78,7 @@ app.post('/create-checkout-session', async (req, res) => {
 
     // Get user info from Firebase
     const userDoc = await db.collection('users').doc(userId).get()
-    if (!userDoc.exists) {
+    if (!userDoc.exists()) {
       return res.status(404).json({ error: 'User not found' })
     }
 
@@ -142,17 +142,183 @@ app.get('/subscription/:userId', async (req, res) => {
   try {
     const { userId } = req.params
     
+    console.log('🔍 Fetching subscription for userId:', userId)
     const subscriptionDoc = await db.collection('subscriptions').doc(userId).get()
     
-    if (!subscriptionDoc.exists) {
+    if (!subscriptionDoc.exists()) {
+      console.log('❌ No subscription document found for userId:', userId)
       return res.json({ subscription: null })
     }
 
     const subscription = subscriptionDoc.data()
+    console.log('✅ Found subscription:', subscription)
     res.json({ subscription })
 
   } catch (error) {
-    console.error('Error fetching subscription:', error)
+    console.error('❌ Error fetching subscription:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    version: '2.1',
+    bug_fixes: ['exists_function_calls_fixed']
+  })
+})
+
+// Webhook endpoint info for Stripe configuration
+app.get('/webhook-info', async (req, res) => {
+  res.json({
+    webhook_url: 'https://webhook-ns2ux2jxra-uc.a.run.app/webhook',
+    required_events: [
+      'checkout.session.completed',
+      'customer.subscription.created', 
+      'customer.subscription.updated',
+      'customer.subscription.deleted',
+      'invoice.payment_succeeded',
+      'invoice.payment_failed'
+    ],
+    instructions: 'Add this webhook URL to your Stripe Dashboard at https://dashboard.stripe.com/webhooks'
+  })
+})
+
+// Manual sync subscription from Stripe
+app.post('/sync-subscription-from-stripe', async (req, res) => {
+  try {
+    const { userId } = req.body
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' })
+    }
+
+    console.log('🔄 Manual sync from Stripe for userId:', userId)
+
+    // Get user document to find Stripe customer ID
+    const userDoc = await db.collection('users').doc(userId).get()
+    if (!userDoc.exists()) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const userData = userDoc.data()
+    const customerId = userData.stripeCustomerId
+
+    if (!customerId) {
+      return res.status(404).json({ error: 'No Stripe customer ID found for user' })
+    }
+
+    console.log('🔍 Found Stripe customer ID:', customerId)
+
+    // Get subscriptions for this customer from Stripe
+    const subscriptions = await getStripe().subscriptions.list({
+      customer: customerId,
+      status: 'all',
+      limit: 10
+    })
+
+    console.log('📄 Found subscriptions from Stripe:', subscriptions.data.length)
+
+    if (subscriptions.data.length === 0) {
+      return res.json({ 
+        success: false, 
+        message: 'No subscriptions found in Stripe for this customer',
+        customerId 
+      })
+    }
+
+    // Get the most recent active subscription
+    const activeSubscription = subscriptions.data.find(sub => 
+      ['active', 'trialing', 'incomplete', 'past_due'].includes(sub.status)
+    ) || subscriptions.data[0]
+
+    console.log('✅ Using subscription:', activeSubscription.id, 'Status:', activeSubscription.status)
+
+    // Determine plan ID from the subscription
+    const priceId = activeSubscription.items.data[0]?.price.id
+    let planId = 'basic' // default
+    
+    if (priceId === 'price_1S0OolGHvMGa8SVhVBqXsHyN') planId = 'professional'
+    if (priceId === 'price_1S0OolGHvMGa8SVh70orLRU2') planId = 'enterprise'
+
+    // Create subscription document in Firebase
+    const subscriptionData = {
+      id: userId,
+      userId: userId,
+      planId: planId,
+      stripeSubscriptionId: activeSubscription.id,
+      stripeCustomerId: activeSubscription.customer,
+      status: activeSubscription.status,
+      currentPeriodStart: admin.firestore.Timestamp.fromDate(
+        new Date(activeSubscription.current_period_start * 1000)
+      ),
+      currentPeriodEnd: admin.firestore.Timestamp.fromDate(
+        new Date(activeSubscription.current_period_end * 1000)
+      ),
+      cancelAtPeriodEnd: activeSubscription.cancel_at_period_end,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    if (activeSubscription.trial_end) {
+      subscriptionData.trialEndsAt = admin.firestore.Timestamp.fromDate(
+        new Date(activeSubscription.trial_end * 1000)
+      )
+    }
+
+    await db.collection('subscriptions').doc(userId).set(subscriptionData)
+    console.log('✅ Subscription synced to Firebase')
+
+    res.json({ 
+      success: true, 
+      message: 'Subscription synced from Stripe',
+      subscription: subscriptionData
+    })
+
+  } catch (error) {
+    console.error('❌ Error syncing subscription from Stripe:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Debug endpoint to create a test subscription
+app.post('/debug/create-test-subscription', async (req, res) => {
+  try {
+    const { userId, planId } = req.body
+    
+    if (!userId || !planId) {
+      return res.status(400).json({ error: 'Missing userId or planId' })
+    }
+
+    console.log('🧪 Creating test subscription for:', { userId, planId })
+
+    const subscriptionData = {
+      id: userId,
+      userId: userId,
+      planId: planId,
+      stripeSubscriptionId: 'sub_test_' + Date.now(),
+      stripeCustomerId: 'cus_test_' + Date.now(),
+      status: 'active',
+      currentPeriodStart: admin.firestore.Timestamp.now(),
+      currentPeriodEnd: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+      cancelAtPeriodEnd: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }
+
+    await db.collection('subscriptions').doc(userId).set(subscriptionData)
+    console.log('✅ Test subscription created successfully')
+
+    res.json({ 
+      success: true, 
+      message: 'Test subscription created',
+      subscriptionData: subscriptionData 
+    })
+
+  } catch (error) {
+    console.error('❌ Error creating test subscription:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -168,7 +334,7 @@ app.post('/cancel-subscription', async (req, res) => {
 
     const subscriptionDoc = await db.collection('subscriptions').doc(userId).get()
     
-    if (!subscriptionDoc.exists) {
+    if (!subscriptionDoc.exists()) {
       return res.status(404).json({ error: 'Subscription not found' })
     }
 
