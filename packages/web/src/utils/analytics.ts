@@ -1,12 +1,19 @@
 import { getAnalytics, logEvent, setUserProperties, setUserId } from 'firebase/analytics'
 import app from '../config/firebase'
 
-// Initialize Analytics
+// Initialize Analytics only if measurement ID is provided
 let analytics: any = null
 
 try {
-  analytics = getAnalytics(app)
-  console.log('Google Analytics initialized successfully')
+  // Check if Analytics is configured (measurement ID provided)
+  const measurementId = import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  
+  if (measurementId && measurementId !== 'undefined') {
+    analytics = getAnalytics(app)
+    console.log('Google Analytics initialized successfully with ID:', measurementId)
+  } else {
+    console.log('Google Analytics disabled - no measurement ID configured')
+  }
 } catch (error) {
   console.warn('Google Analytics initialization failed:', error)
 }
