@@ -275,10 +275,10 @@ export const MyAccountPage: React.FC = () => {
             </Box>
             
             <Typography><strong>Price:</strong> {formatPrice(currentPlan.price)}/month</Typography>
-            <Typography><strong>Billing Period:</strong> {subscription.currentPeriodStart?.toDate().toLocaleDateString()} - {subscription.currentPeriodEnd?.toDate().toLocaleDateString()}</Typography>
+            <Typography><strong>Billing Period:</strong> {subscription.currentPeriodStart?.toLocaleDateString()} - {subscription.currentPeriodEnd?.toLocaleDateString()}</Typography>
             
-            {subscription.trialEndsAt && new Date(subscription.trialEndsAt.seconds * 1000) > new Date() && (
-              <Typography color="primary"><strong>Trial ends:</strong> {new Date(subscription.trialEndsAt.seconds * 1000).toLocaleDateString()}</Typography>
+            {subscription.trialEndsAt && subscription.trialEndsAt > new Date() && (
+              <Typography color="primary"><strong>Trial ends:</strong> {subscription.trialEndsAt.toLocaleDateString()}</Typography>
             )}
             
             <Box sx={{ mt: 2 }}>

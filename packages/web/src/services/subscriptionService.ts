@@ -9,10 +9,37 @@ import {
   where, 
   getDocs,
   orderBy,
-  limit
+  limit,
+  Timestamp
 } from 'firebase/firestore'
 import { db } from '../config/firebase'
 import { SubscriptionPlan, UserSubscription, PaymentMethod, UsageStats } from '../types/subscription'
+
+// Helper function to safely convert timestamps
+const safeToDate = (timestamp: any): Date | undefined => {
+  if (!timestamp) return undefined
+  
+  // If it's already a Date object, return it
+  if (timestamp instanceof Date) return timestamp
+  
+  // If it's a Firebase Timestamp, use toDate()
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    return timestamp.toDate()
+  }
+  
+  // If it's a raw timestamp object with _seconds, convert it
+  if (timestamp && typeof timestamp._seconds === 'number') {
+    return new Date(timestamp._seconds * 1000)
+  }
+  
+  // If it's a number (Unix timestamp), convert it
+  if (typeof timestamp === 'number') {
+    return new Date(timestamp * 1000)
+  }
+  
+  console.warn('Unable to convert timestamp:', timestamp)
+  return undefined
+}
 
 // Initialize Stripe with explicit configuration
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51QTkauGHvMGa8SVhHYU4WxKb6E6MYlOxVnUJMqxV1NXTbQbRkZHdgu4JqUmEXGLNtFoS3KzXMM9UL5Kfwfbm9ypc00YpI9y2yj'
@@ -104,11 +131,11 @@ export class SubscriptionService {
       
       const subscription = {
         ...data,
-        currentPeriodStart: data.currentPeriodStart?.toDate(),
-        currentPeriodEnd: data.currentPeriodEnd?.toDate(),
-        createdAt: data.createdAt?.toDate(),
-        updatedAt: data.updatedAt?.toDate(),
-        trialEndsAt: data.trialEndsAt?.toDate()
+        currentPeriodStart: safeToDate(data.currentPeriodStart),
+        currentPeriodEnd: safeToDate(data.currentPeriodEnd),
+        createdAt: safeToDate(data.createdAt),
+        updatedAt: safeToDate(data.updatedAt),
+        trialEndsAt: safeToDate(data.trialEndsAt)
       } as UserSubscription
       
       console.log('✅ Processed subscription:', subscription)
@@ -126,14 +153,17 @@ export class SubscriptionService {
       const q = query(subscriptionsRef, orderBy('createdAt', 'desc'))
       const snapshot = await getDocs(q)
       
-      return snapshot.docs.map(doc => ({
-        ...doc.data(),
-        currentPeriodStart: doc.data().currentPeriodStart.toDate(),
-        currentPeriodEnd: doc.data().currentPeriodEnd.toDate(),
-        createdAt: doc.data().createdAt.toDate(),
-        updatedAt: doc.data().updatedAt.toDate(),
-        trialEndsAt: doc.data().trialEndsAt?.toDate()
-      })) as UserSubscription[]
+      return snapshot.docs.map(doc => {
+        const data = doc.data()
+        return {
+          ...data,
+          currentPeriodStart: safeToDate(data.currentPeriodStart),
+          currentPeriodEnd: safeToDate(data.currentPeriodEnd),
+          createdAt: safeToDate(data.createdAt),
+          updatedAt: safeToDate(data.updatedAt),
+          trialEndsAt: safeToDate(data.trialEndsAt)
+        }
+      }) as UserSubscription[]
     } catch (error) {
       console.error('Error fetching all subscriptions:', error)
       return []
