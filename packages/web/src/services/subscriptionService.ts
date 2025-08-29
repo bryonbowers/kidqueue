@@ -121,6 +121,9 @@ export class SubscriptionService {
       const subscriptionRef = doc(db, 'subscriptions', userId)
       const subscriptionDoc = await getDoc(subscriptionRef)
       
+      console.log('🔍 subscriptionDoc type:', typeof subscriptionDoc, subscriptionDoc)
+      console.log('🔍 subscriptionDoc.exists type:', typeof subscriptionDoc.exists)
+      
       if (!subscriptionDoc.exists()) {
         console.log('❌ No subscription document found for user:', userId)
         return null
@@ -350,7 +353,7 @@ export class SubscriptionService {
     }
   }
 
-  // Cancel subscription
+  // Cancel subscription  
   static async cancelSubscription(userId: string): Promise<void> {
     try {
       const response = await fetch('https://api-ns2ux2jxra-uc.a.run.app/cancel-subscription', {
