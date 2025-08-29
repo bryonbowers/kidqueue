@@ -42,7 +42,8 @@
       "Bash(git reset:*)",
       "WebFetch(domain:localhost)",
       "Bash(npm run deploy:api)",
-      "Bash(start test-subscription-ui.html)"
+      "Bash(start test-subscription-ui.html)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": [],
