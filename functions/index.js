@@ -413,16 +413,38 @@ app.post('/cancel-subscription', async (req, res) => {
 
     const subscriptionDoc = await db.collection('subscriptions').doc(userId).get()
     
-    if (!subscriptionDoc.exists) {
+    if (!subscriptionDoc.exists()) {
       return res.status(404).json({ error: 'Subscription not found' })
     }
 
     const subscriptionData = subscriptionDoc.data()
     
-    // Cancel the Stripe subscription at period end
-    await getStripe().subscriptions.update(subscriptionData.stripeSubscriptionId, {
-      cancel_at_period_end: true
-    })
+    try {
+      // Try to cancel the Stripe subscription at period end
+      await getStripe().subscriptions.update(subscriptionData.stripeSubscriptionId, {
+        cancel_at_period_end: true
+      })
+      console.log('✅ Stripe subscription marked for cancellation:', subscriptionData.stripeSubscriptionId)
+    } catch (stripeError) {
+      console.warn('⚠️ Stripe subscription not found or already canceled:', stripeError.message)
+      
+      // If subscription doesn't exist in Stripe, mark it as canceled immediately
+      if (stripeError.code === 'resource_missing') {
+        await db.collection('subscriptions').doc(userId).update({
+          status: 'canceled',
+          cancelAtPeriodEnd: true,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        })
+        
+        return res.json({ 
+          success: true, 
+          message: 'Subscription was already canceled or expired in Stripe. Local record updated.' 
+        })
+      }
+      
+      // Re-throw other Stripe errors
+      throw stripeError
+    }
 
     // Update Firebase document
     await db.collection('subscriptions').doc(userId).update({
